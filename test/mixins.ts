@@ -1,0 +1,134 @@
+import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
+import { ethers } from "hardhat";
+
+import {
+  GnosisSafe,
+  GnosisSafeProxyFactory,
+  RegistryModule,
+  AccountingModule,
+  LifecycleModule,
+  StakingModule,
+} from "./../typechain/";
+
+import { decodeLogs } from "./utils/index";
+
+export const deployGnosisSafeSingleton = async () => {
+  const GnosisSafe = await ethers.getContractFactory("GnosisSafe");
+  const gnosisSafeSingleton: GnosisSafe = await GnosisSafe.deploy();
+  await gnosisSafeSingleton.deployed();
+  return gnosisSafeSingleton;
+};
+
+export const deployGnosisSafeFactory = async () => {
+  const GnosisSafeProxyFactory = await ethers.getContractFactory(
+    "GnosisSafeProxyFactory"
+  );
+  const gnosisSafeProxyFactory: GnosisSafeProxyFactory =
+    await GnosisSafeProxyFactory.deploy();
+  await gnosisSafeProxyFactory.deployed();
+  return gnosisSafeProxyFactory;
+};
+
+export const deployGnosisSafe = async (
+  gnosisSafeSingleton: GnosisSafe,
+  gnosisSafeProxyFactory: GnosisSafeProxyFactory,
+  owner: SignerWithAddress
+) => {
+  const GnosisSafe = await ethers.getContractFactory("GnosisSafe");
+
+  // Prepare initializer
+  const initializer = gnosisSafeSingleton.interface.encodeFunctionData(
+    // @ts-ignore
+    "setup",
+    [
+      [owner.address], // owners
+      1, // threshold
+      ethers.constants.AddressZero, // to (delegate call)
+      "0x", // data (delegate call)
+      ethers.constants.AddressZero, // fallback handler
+      ethers.constants.AddressZero, // payment token
+      "0", // payment
+      ethers.constants.AddressZero, // payment address
+    ]
+  );
+
+  const tx = await gnosisSafeProxyFactory.createProxyWithNonce(
+    gnosisSafeSingleton.address,
+    initializer,
+    Date.now()
+  );
+  const receipt = await tx.wait();
+
+  const logs = decodeLogs<GnosisSafeProxyFactory>(
+    gnosisSafeProxyFactory,
+    "ProxyCreation",
+    receipt
+  );
+
+  const deployedSafeAddress =
+    "0x" + logs[0].data.split("000000000000000000000000")[1];
+
+  const deployedSafe = GnosisSafe.attach(deployedSafeAddress);
+  return deployedSafe;
+};
+
+export const enableModule = async (
+  gnosisSafe: GnosisSafe,
+  moduleAddress: string,
+  owner: SignerWithAddress
+) => {
+  const addModuleData = gnosisSafe.interface.encodeFunctionData(
+    "enableModule",
+    [moduleAddress]
+  );
+
+  await gnosisSafe.execTransaction(
+    gnosisSafe.address,
+    "0",
+    addModuleData,
+    "0",
+    "0",
+    "0",
+    "0",
+    ethers.constants.AddressZero,
+    ethers.constants.AddressZero,
+    `0x000000000000000000000000${owner.address.substring(
+      2
+    )}000000000000000000000000000000000000000000000000000000000000000001`
+  );
+};
+
+export const setupRegistry = async (
+  gnosisSafe: GnosisSafe,
+  registryModule: RegistryModule,
+  accountingModule: AccountingModule,
+  lifecycleModule: LifecycleModule,
+  stakingModule: StakingModule,
+  owner: SignerWithAddress
+) => {
+  const setRegistryAddressesData = registryModule.interface.encodeFunctionData(
+    "setRegistryAddresses",
+    [
+      {
+        accountingModule: accountingModule.address,
+        lifecycleModule: lifecycleModule.address,
+        stakingModule: stakingModule.address,
+      },
+    ]
+  );
+
+  await gnosisSafe.execTransaction(
+    registryModule.address,
+    "0",
+    setRegistryAddressesData,
+    "0",
+    "0",
+    "0",
+    "0",
+    ethers.constants.AddressZero,
+    ethers.constants.AddressZero,
+    `0x000000000000000000000000${owner.address.substring(
+      2
+    )}000000000000000000000000000000000000000000000000000000000000000001`
+  );
+};
