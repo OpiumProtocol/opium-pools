@@ -29,12 +29,20 @@ contract LifecycleModule is ILifecycleModule, RegistryManager {
         _setLengths(lengths_);
     }
 
-    modifier onlyStrategyModule() {
-        // TODO: Check Strategy Module
+    modifier onlyAccountingModule() {
+        // TODO: Check Accounting Module
         _;
     }
 
-    // Public getters
+    // External getters
+    function getCurrentEpochStart() override external view returns (uint256) {
+        return _currentEpochStart;
+    }
+
+    function getCurrentEpochEnd() override external view returns (uint256) {
+        return _currentEpochStart + _epochLength;
+    }
+
     function getEpochLength() override external view returns (uint256) {
         return _epochLength;
     }
@@ -81,8 +89,15 @@ contract LifecycleModule is ILifecycleModule, RegistryManager {
         return isTradingPhase();
     }
 
-    function canRebalance() override external view returns (bool) {
+    // Public getters
+    function canRebalance() override public view returns (bool) {
         return isIdlePhase();
+    }
+
+    // External setters
+    function progressEpoch() override external onlyAccountingModule {
+        require(canRebalance(), "wtf");
+        _setCurrentEpochStart(_currentEpochStart + _epochLength);
     }
 
     // Private setters

@@ -8,6 +8,7 @@ import {
   AccountingModule,
   LifecycleModule,
   StakingModule,
+  OptionsSellingStrategyModule,
 } from "./../typechain/";
 
 import { decodeLogs } from "./utils/index";
@@ -121,6 +122,34 @@ export const setupRegistry = async (
     registryModule.address,
     "0",
     setRegistryAddressesData,
+    "0",
+    "0",
+    "0",
+    "0",
+    ethers.constants.AddressZero,
+    ethers.constants.AddressZero,
+    `0x000000000000000000000000${owner.address.substring(
+      2
+    )}000000000000000000000000000000000000000000000000000000000000000001`
+  );
+};
+
+export const setStrategyAdvisor = async (
+  gnosisSafe: GnosisSafe,
+  strategyModule: OptionsSellingStrategyModule,
+  advisor: SignerWithAddress,
+  owner: SignerWithAddress
+) => {
+  const ADVISOR_ROLE = await strategyModule.ADVISOR_ROLE();
+  const setAdvisorRoleData = strategyModule.interface.encodeFunctionData(
+    "grantRole",
+    [ADVISOR_ROLE, advisor.address]
+  );
+
+  await gnosisSafe.execTransaction(
+    strategyModule.address,
+    "0",
+    setAdvisorRoleData,
     "0",
     "0",
     "0",

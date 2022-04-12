@@ -78,6 +78,9 @@ contract OptionsSellingStrategyModule is IStrategyModule, RegistryManager, Acces
 
   // External setters
   function mintPositions(IOpiumCore.Derivative memory derivative_) external canTrade onlyRole(ADVISOR_ROLE) {
+    ILifecycleModule lifecycleModule = getRegistryModule().getRegistryAddresses().lifecycleModule;
+    require(lifecycleModule.getCurrentEpochEnd() >= derivative_.endTime, "no no no");
+
     (uint256 availableQuantity, uint256 requiredMargin) = getAvailableQuantity(derivative_);
 
     // Approve margin to TokenSpender to create positions
@@ -88,11 +91,13 @@ contract OptionsSellingStrategyModule is IStrategyModule, RegistryManager, Acces
     );
     _executeCall(derivative_.token, data);
 
-    IOpiumCore(_opiumRegistry.getProtocolAddresses().core).createAndMint(
+    data = abi.encodeWithSelector(
+      bytes4(keccak256(bytes("createAndMint((uint256,uint256,uint256[],address,address,address),uint256,address[2])"))),
       derivative_,
       availableQuantity * 1e18,
-      [address(this),address(this)]
+      [address(_executor),address(_executor)]
     );
+    _executeCall(_opiumRegistry.getProtocolAddresses().core, data);
 
     (address longPositionAddress, address shortPositionAddress) = _opiumLens.predictPositionsAddressesByDerivative(derivative_);
 
@@ -156,7 +161,7 @@ contract OptionsSellingStrategyModule is IStrategyModule, RegistryManager, Acces
   }
 
   function rebalance() external canRebalance {
-    
+    getRegistryModule().getRegistryAddresses().accountingModule.rebalance();
   }
 
   // Private setters

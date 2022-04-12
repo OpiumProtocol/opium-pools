@@ -1,5 +1,6 @@
 import { Contract, ContractReceipt } from "ethers";
 import { Log } from "@ethersproject/providers";
+import hardhat from "hardhat";
 
 export const decodeLogs = <T extends Contract>(
   contract: T,
@@ -12,4 +13,9 @@ export const decodeLogs = <T extends Contract>(
 
 export const formatAddress = (address: string): string => {
   return "0x".concat(address.split("0x000000000000000000000000")[1]);
+};
+
+export const timeTravel = async (seconds: number): Promise<void> => {
+  await hardhat.network.provider.send("evm_increaseTime", [seconds]);
+  await hardhat.network.provider.send("evm_mine");
 };

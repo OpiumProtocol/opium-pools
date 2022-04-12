@@ -9,8 +9,10 @@ interface IAccountingModule {
   function getUtilizedLiquidity() external view returns (uint256);
   function getAvailableLiquidity() external view returns (uint256);
   function getLiquidityUtilizationRatio() external view returns (uint256);
+  function getAccumulatedFees() external view returns (uint256);
   function hasPosition(address position_) external view returns (bool);
 
   function changeTotalLiquidity(uint256 amount_, bool add_) external;
   function changeHoldingPosition(address position_, bool add_) external;
+  function rebalance() external;
 }

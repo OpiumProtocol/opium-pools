@@ -39,12 +39,13 @@ contract SafeModule is ReentrancyGuard {
 
     // Internal setters
     function _executeCall(address target_, bytes memory data_) internal {
-        _executor.execTransactionFromModule(
+        bool success = _executor.execTransactionFromModule(
             target_,
             0,
             data_,
             Enum.Operation.Call
         );
+        require(success, "SafeModule execution failed");
     }
 
     // Private setters

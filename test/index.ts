@@ -8,25 +8,41 @@ import {
   deployGnosisSafe,
   enableModule,
   setupRegistry,
+  setStrategyAdvisor,
 } from "./mixins";
 
-import { MockToken, GnosisSafe, StakingModule } from "./../typechain/";
+import {
+  MockToken,
+  GnosisSafe,
+  StakingModule,
+  OptionsSellingStrategyModule,
+} from "./../typechain/";
+
+import { timeTravel } from "./utils";
 
 // Lifecycle Module constants
 const EPOCH_LENGTH = 3600 * 24 * 7; // 1 week
 const STAKING_LENGTH = 3600 * 4; // 4 hours
 const TRADING_LENGTH = 3600 * 24 * 2; // 2 days
+const EPOCH_START = ~~(Date.now() / 1000) - 3600; // Now - 1hour
+
+// Strategy Module constants
+const OPIUM_REGISTRY = "0x17b6ffe276e8A4a299a5a87a656aFc5b8FA3ee4a"; // Arbitrum One
+const OPIUM_LENS = "0xfa01Fd6118445F811753D96178F2ef8AE77caa53"; // Arbitrum One
 
 describe("StakingModule", function () {
   let deployer: SignerWithAddress;
   let staker: SignerWithAddress;
+  let buyer: SignerWithAddress;
+  let advisor: SignerWithAddress;
 
   let gnosisSafe: GnosisSafe;
   let mockToken: MockToken;
   let stakingModule: StakingModule;
+  let strategyModule: OptionsSellingStrategyModule;
 
   before(async () => {
-    [deployer, staker] = await ethers.getSigners();
+    [deployer, staker, buyer, advisor] = await ethers.getSigners();
 
     // SETUP STARTED
 
@@ -63,7 +79,7 @@ describe("StakingModule", function () {
     // Deploy Lifecycle Module
     const LifecycleModule = await ethers.getContractFactory("LifecycleModule");
     const lifecycleModule = await LifecycleModule.deploy(
-      ~~(Date.now() / 1000) - 3600,
+      EPOCH_START,
       [EPOCH_LENGTH, STAKING_LENGTH, TRADING_LENGTH],
       registryModule.address,
       gnosisSafe.address
@@ -80,8 +96,21 @@ describe("StakingModule", function () {
     );
     await stakingModule.deployed();
 
+    // Deploy Strategy Module
+    const OptionsSellingStrategyModule = await ethers.getContractFactory(
+      "OptionsSellingStrategyModule"
+    );
+    strategyModule = await OptionsSellingStrategyModule.deploy(
+      OPIUM_REGISTRY,
+      OPIUM_LENS,
+      registryModule.address,
+      gnosisSafe.address
+    );
+    await strategyModule.deployed();
+
     await enableModule(gnosisSafe, registryModule.address, deployer);
     await enableModule(gnosisSafe, stakingModule.address, deployer);
+    await enableModule(gnosisSafe, strategyModule.address, deployer);
 
     await setupRegistry(
       gnosisSafe,
@@ -91,11 +120,15 @@ describe("StakingModule", function () {
       stakingModule,
       deployer
     );
+
+    await setStrategyAdvisor(gnosisSafe, strategyModule, advisor, deployer);
   });
 
   it("should deposit and withdraw", async function () {
     // Send tokens to staker
     const DEPOSIT_AMOUNT = ethers.utils.parseEther("1000");
+    const WITHDRAW_AMOUNT = ethers.utils.parseEther("500");
+    const diff = DEPOSIT_AMOUNT.sub(WITHDRAW_AMOUNT);
 
     await mockToken.transfer(staker.address, DEPOSIT_AMOUNT);
 
@@ -121,14 +154,79 @@ describe("StakingModule", function () {
     );
 
     // Withdraw
-    await stakingModule.connect(staker).withdraw(DEPOSIT_AMOUNT);
+    await stakingModule.connect(staker).withdraw(WITHDRAW_AMOUNT);
 
-    expect(await mockToken.balanceOf(staker.address)).to.equal(DEPOSIT_AMOUNT);
-    expect(await stakingModule.balanceOf(staker.address)).to.equal("0");
+    expect(await mockToken.balanceOf(staker.address)).to.equal(WITHDRAW_AMOUNT);
+    expect(await stakingModule.balanceOf(staker.address)).to.equal(diff);
 
-    expect(await stakingModule.totalSupply()).to.equal("0");
+    expect(await stakingModule.totalSupply()).to.equal(diff);
     expect(await mockToken.balanceOf(stakingModule.address)).to.equal("0");
 
-    expect(await mockToken.balanceOf(gnosisSafe.address)).to.equal("0");
+    expect(await mockToken.balanceOf(gnosisSafe.address)).to.equal(diff);
+  });
+
+  it("should perform strategy", async () => {
+    // Time travel to Staking phase + 1 hour
+    await timeTravel(STAKING_LENGTH + 3600);
+
+    const ONE_ETH = ethers.utils.parseEther("1");
+    const SYNTHETIC_ID_ADDRESS = "0x61EFdF8c52b49A347E69dEe7A62e0921A3545cF7"; // OPT-C
+    const ORACLE_ID_ADDRESS = "0xAF5F031b8D5F12AD80d5E5f13C99249d82AfFfe2"; // ETH/USD
+    const STRIKE_PRICE = ethers.utils.parseEther("3000");
+    const COLLATERALIZATION = ethers.utils.parseEther("1");
+
+    const derivative = {
+      margin: ONE_ETH,
+      endTime: EPOCH_START + EPOCH_LENGTH,
+      params: [STRIKE_PRICE, COLLATERALIZATION, 0],
+      syntheticId: SYNTHETIC_ID_ADDRESS,
+      token: mockToken.address,
+      oracleId: ORACLE_ID_ADDRESS,
+    };
+
+    const opiumLens = await ethers.getContractAt(
+      "IOpiumOnChainPositionsLens",
+      OPIUM_LENS
+    );
+    const positionAddresses =
+      await opiumLens.predictPositionsAddressesByDerivative(derivative);
+
+    const availableQuantity = await strategyModule.getAvailableQuantity(
+      derivative
+    );
+
+    await strategyModule.connect(advisor).mintPositions(derivative);
+
+    const PREMIUM = ethers.utils.parseEther("0.01");
+    const TOTAL_PREMIUM = PREMIUM.mul(availableQuantity.availableQuantity);
+    await mockToken.transfer(buyer.address, TOTAL_PREMIUM);
+    await mockToken
+      .connect(buyer)
+      .approve(strategyModule.address, TOTAL_PREMIUM);
+
+    await strategyModule
+      .connect(advisor)
+      .setPremium(positionAddresses.longPositionAddress, PREMIUM);
+
+    await strategyModule
+      .connect(buyer)
+      .purchasePosition(
+        positionAddresses.longPositionAddress,
+        availableQuantity.availableQuantity,
+        PREMIUM
+      );
+
+    // Time travel to Next epoch
+    await timeTravel(EPOCH_LENGTH - STAKING_LENGTH);
+
+    const oracle = await ethers.getContractAt(
+      "IOpiumOracle",
+      derivative.oracleId
+    );
+    await oracle._callback(derivative.endTime);
+
+    await strategyModule.executePositions(derivative);
+
+    await strategyModule.rebalance();
   });
 });

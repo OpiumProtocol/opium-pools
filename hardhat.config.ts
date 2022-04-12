@@ -28,9 +28,13 @@ const config: HardhatUserConfig = {
   networks: {
     hardhat: {
       allowUnlimitedContractSize: true,
+      forking: {
+        url: process.env.ARBITRUM_URL || "",
+      },
+      chainId: 42161,
     },
     ropsten: {
-      url: process.env.ROPSTEN_URL || "",
+      url: process.env.ARBITRUM_URL || "",
       accounts:
         process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
     },
@@ -47,6 +51,9 @@ const config: HardhatUserConfig = {
       "@gnosis.pm/safe-contracts/contracts/GnosisSafe.sol",
       "@gnosis.pm/safe-contracts/contracts/proxies/GnosisSafeProxyFactory.sol",
     ],
+  },
+  mocha: {
+    timeout: 120000,
   },
 };
 
