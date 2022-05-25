@@ -2,12 +2,23 @@
 pragma solidity ^0.8.0;
 
 import "../base/RegistryManager.sol";
-import "../base/SafeModule.sol";
 
 import "../interfaces/ILifecycleModule.sol";
 
+/**
+    @notice Lifecycle Module performs lifecycle processes for the pool:
+        - keeps track of current epoch
+        - keeps track of current phase
+        - keeps track of currently allowed actions
+        - progresses pool to new epoch
+    
+    Error cores:
+        - LM1 - Only AccountingModule allowed
+        - LM2 - Can not rebalance yet
+        - LM3 - Epoch length is wrong
+ */
 contract LifecycleModule is ILifecycleModule, RegistryManager {
-    // 10 second buffer for phases to double check and prevent timestamp manipulations
+    // 10 second buffer for phases to double check and prevent timestamp manipulations as an additional security measure
     uint256 public constant TIME_DELTA = 10;
 
     uint256 private _epochLength;
@@ -30,7 +41,14 @@ contract LifecycleModule is ILifecycleModule, RegistryManager {
     }
 
     modifier onlyAccountingModule() {
-        // TODO: Check Accounting Module
+        require(
+            msg.sender == address(
+                getRegistryModule()
+                    .getRegistryAddresses()
+                    .accountingModule
+            ),
+            "LM1"
+        );
         _;
     }
 
@@ -91,12 +109,12 @@ contract LifecycleModule is ILifecycleModule, RegistryManager {
 
     // Public getters
     function canRebalance() override public view returns (bool) {
-        return isIdlePhase();
+        return isIdlePhase() && block.timestamp > _currentEpochStart + _epochLength;
     }
 
     // External setters
     function progressEpoch() override external onlyAccountingModule {
-        require(canRebalance(), "wtf");
+        require(canRebalance(), "LM2");
         _setCurrentEpochStart(_currentEpochStart + _epochLength);
     }
 
@@ -110,11 +128,11 @@ contract LifecycleModule is ILifecycleModule, RegistryManager {
         // Validate epoch and phases lengths
         // STAKING_PHASE + TRADING_PHASE < EPOCH: epoch length should be longer than sum of staking and trading phase lengths
         // The rest is considered as an IDLE phase
-        require(_stakingPhaseLength + _tradingPhaseLength < _epochLength, "EPOCH_LENGTH_IS_WRONG");
+        require(_stakingPhaseLength + _tradingPhaseLength < _epochLength, "LM3");
         // STAKING_PHASE > TIME_DELTA * 2
-        require(_stakingPhaseLength > TIME_DELTA * 2, "EPOCH_LENGTH_IS_WRONG");
+        require(_stakingPhaseLength > TIME_DELTA * 2, "LM3");
         // TRADING_PHASE > TIME_DELTA * 2
-        require(_tradingPhaseLength > TIME_DELTA * 2, "EPOCH_LENGTH_IS_WRONG");
+        require(_tradingPhaseLength > TIME_DELTA * 2, "LM3");
     }
 
     function _setCurrentEpochStart(uint256 currentEpochStart_) private {

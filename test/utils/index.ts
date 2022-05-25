@@ -1,6 +1,6 @@
 import { Contract, ContractReceipt } from "ethers";
 import { Log } from "@ethersproject/providers";
-import hardhat from "hardhat";
+import hardhat, { ethers } from "hardhat";
 
 export const decodeLogs = <T extends Contract>(
   contract: T,
@@ -17,5 +17,23 @@ export const formatAddress = (address: string): string => {
 
 export const timeTravel = async (seconds: number): Promise<void> => {
   await hardhat.network.provider.send("evm_increaseTime", [seconds]);
+  await hardhat.network.provider.send("evm_mine");
+};
+
+export const getCurrentTimestamp = async (): Promise<number> => {
+  const blockNumber = await ethers.provider.getBlockNumber();
+  const block = await ethers.provider.getBlock(blockNumber);
+  return block.timestamp;
+};
+
+export const takeSnapshot = async () => {
+  const result = await hardhat.network.provider.send("evm_snapshot", []);
+  await hardhat.network.provider.send("evm_mine");
+
+  return result;
+};
+
+export const restoreSnapshot = async (id: any) => {
+  await hardhat.network.provider.send("evm_revert", [id]);
   await hardhat.network.provider.send("evm_mine");
 };

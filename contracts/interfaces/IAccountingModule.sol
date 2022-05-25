@@ -11,8 +11,11 @@ interface IAccountingModule {
   function getLiquidityUtilizationRatio() external view returns (uint256);
   function getAccumulatedFees() external view returns (uint256);
   function hasPosition(address position_) external view returns (bool);
+  function getFeeCollector() external view returns (address);
 
   function changeTotalLiquidity(uint256 amount_, bool add_) external;
   function changeHoldingPosition(address position_, bool add_) external;
   function rebalance() external;
+  function collectFees() external;
+  function setFeeCollector(address feeCollector_) external;
 }

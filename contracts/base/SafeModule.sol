@@ -20,6 +20,13 @@ interface Executor {
         returns (bool success);
 }
 
+/**
+    @notice Abstract contract to allow modules send transactions on GnosisSafe's behalf
+    Error codes:
+        - SM1 = Only executor allowed
+        - SM2 = Wrong input
+        - SM3 = SafeModule execution failed
+ */
 contract SafeModule is ReentrancyGuard {
     Executor internal _executor;
 
@@ -30,6 +37,11 @@ contract SafeModule is ReentrancyGuard {
     
     constructor(Executor executor_) {
         _setExecutor(executor_);
+    }
+
+    // External getters
+    function getExecutor() external view returns (Executor) {
+        return _executor;
     }
 
     // External setters
@@ -45,7 +57,7 @@ contract SafeModule is ReentrancyGuard {
             data_,
             Enum.Operation.Call
         );
-        require(success, "SafeModule execution failed");
+        require(success, "SM3");
     }
 
     // Private setters

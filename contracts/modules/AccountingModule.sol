@@ -4,10 +4,19 @@ pragma solidity ^0.8.0;
 import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 
 import "../base/RegistryManager.sol";
-import "../base/SafeModule.sol";
 
 import "../interfaces/IAccountingModule.sol";
 
+/**
+    @notice Accounting Module performs accounting processes for the pool: calculates total and available liquidity, fees and tracks held positions
+    Error cores:
+        - AM1 = Only StakingModule or StrategyModule allowed
+        - AM2 = Only enabled strategy allowed
+        - AM3 = Wrong input
+        - AM4 = Only fee collector allowed
+        - AM5 = Not ready for rebalancing
+        - AM6 = Only fee collector or executor allowed
+ */
 contract AccountingModule is IAccountingModule, RegistryManager {
     using EnumerableSet for EnumerableSet.AddressSet;
 
@@ -15,12 +24,11 @@ contract AccountingModule is IAccountingModule, RegistryManager {
     uint256 constant public FEE = 0.01e18;
 
     IERC20Metadata private _underlying;
+    address private _feeCollector;
 
     uint256 private _totalLiquidity;
-    uint256 private _utilizedLiquidity;
     uint256 private _accumulatedFees;
 
-    // THINK: Maybe useless?
     EnumerableSet.AddressSet private _holdingPositions;
 
     constructor(
@@ -34,18 +42,40 @@ contract AccountingModule is IAccountingModule, RegistryManager {
         _setUnderlying(underlying_);
     }
 
-    modifier onlyStakingModule() {
+    modifier onlyStakingOrStrategyModule() {
         require(
-            msg.sender == getRegistryModule()
-                .getRegistryAddresses()
-                .stakingModule,
-            "not allowed"
+            (
+                msg.sender == getRegistryModule()
+                    .getRegistryAddresses()
+                    .stakingModule ||
+                getRegistryModule().isStrategyEnabled(msg.sender)
+            ),
+            "AM1"
         );
         _;
     }
 
     modifier onlyStrategyModule() {
-        // TODO: Check Strategy Module
+        require(
+            getRegistryModule().isStrategyEnabled(msg.sender),
+            "AM2"
+        );
+        _;
+    }
+
+    modifier onlyFeeCollector() {
+        require(msg.sender == _feeCollector, "AM4");
+        _;
+    }
+
+    modifier onlyFeeCollectorOrExecutor() {
+        require(
+            (
+                msg.sender == _feeCollector ||
+                msg.sender == address(_executor)
+            ),
+            "AM6"
+        );
         _;
     }
 
@@ -58,16 +88,31 @@ contract AccountingModule is IAccountingModule, RegistryManager {
         return _totalLiquidity;
     }
 
-    function getUtilizedLiquidity() override external view returns (uint256) {
-        return _utilizedLiquidity;
+    function getUtilizedLiquidity() override public view returns (uint256) {
+        uint256 availableLiquidity = getAvailableLiquidity();
+
+        if (_totalLiquidity < availableLiquidity) {
+            return 0;
+        }
+
+        return _totalLiquidity - availableLiquidity;
     }
 
-    function getAvailableLiquidity() override external view returns (uint256) {
-        return _totalLiquidity - _utilizedLiquidity;
+    function getAvailableLiquidity() override public view returns (uint256) {
+        uint256 poolBalance = _underlying.balanceOf(address(_executor));
+        if (poolBalance < _accumulatedFees) {
+            return 0;
+        }
+
+        return  poolBalance - _accumulatedFees;
     }
 
     function getLiquidityUtilizationRatio() override external view returns (uint256) {
-        return _utilizedLiquidity * BASE / _totalLiquidity;
+        if (_totalLiquidity == 0) {
+            return 0;
+        }
+
+        return getUtilizedLiquidity() * BASE / _totalLiquidity;
     }
 
     function getAccumulatedFees() override external view returns (uint256) {
@@ -78,8 +123,12 @@ contract AccountingModule is IAccountingModule, RegistryManager {
         return _holdingPositions.contains(position_);
     }
 
+    function getFeeCollector() override external view returns (address) {
+        return _feeCollector;
+    }
+
     // External setters
-    function changeTotalLiquidity(uint256 amount_, bool add_) override external onlyStakingModule {
+    function changeTotalLiquidity(uint256 amount_, bool add_) override external onlyStakingOrStrategyModule {
         if (add_) {
             _setTotalLiquidity(_totalLiquidity + amount_);
         } else {
@@ -89,18 +138,14 @@ contract AccountingModule is IAccountingModule, RegistryManager {
 
     function changeHoldingPosition(address position_, bool add_) override external onlyStrategyModule {
         if (add_) {
-            if (!_holdingPositions.contains(position_)) {
-                _holdingPositions.add(position_);
-            }
+            _holdingPositions.add(position_);
         } else {
-            if (_holdingPositions.contains(position_)) {
-                _holdingPositions.remove(position_);
-            }
+            _holdingPositions.remove(position_);
         }
     }
 
     function rebalance() override external onlyStrategyModule {
-        require(_holdingPositions.length() == 0, "not ready for rebalancing");
+        require(_holdingPositions.length() == 0, "AM5");
 
         uint256 previousBalance = _totalLiquidity + _accumulatedFees;
         uint256 currentBalance = _underlying.balanceOf(address(_executor));
@@ -121,9 +166,23 @@ contract AccountingModule is IAccountingModule, RegistryManager {
         getRegistryModule().getRegistryAddresses().lifecycleModule.progressEpoch();
     }
 
+    function collectFees() override external onlyFeeCollector {
+        // Cache accumulated fees
+        uint256 accumulatedFees = _accumulatedFees;
+        // Set accumulated fees to zero
+        _setAccumulatedFees(0);
+        // Transfer fees out
+        bytes memory data = abi.encodeWithSelector(bytes4(keccak256(bytes("transfer(address,uint256)"))), msg.sender, accumulatedFees);
+        _executeCall(address(_underlying), data);
+    }
+
+    function setFeeCollector(address feeCollector_) override external onlyFeeCollectorOrExecutor {
+        _setFeeCollector(feeCollector_);
+    }
+
     // Private setters
     function _setUnderlying(IERC20Metadata underlying_) private {
-        // TODO: Sanitize
+        require(address(underlying_) != address(0), "AM3");
         _underlying = underlying_;
     }
 
@@ -133,5 +192,9 @@ contract AccountingModule is IAccountingModule, RegistryManager {
 
     function _setAccumulatedFees(uint256 accumulatedFees_) private {
         _accumulatedFees = accumulatedFees_;
+    }
+
+    function _setFeeCollector(address feeCollector_) private {
+        _feeCollector = feeCollector_;
     }
 }

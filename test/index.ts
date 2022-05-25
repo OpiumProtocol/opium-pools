@@ -9,6 +9,7 @@ import {
   enableModule,
   setupRegistry,
   setStrategyAdvisor,
+  enableStrategyInRegistry,
 } from "./mixins";
 
 import {
@@ -18,19 +19,23 @@ import {
   OptionsSellingStrategyModule,
 } from "./../typechain/";
 
-import { timeTravel } from "./utils";
+import {
+  timeTravel,
+  takeSnapshot,
+  restoreSnapshot,
+  getCurrentTimestamp,
+} from "./utils";
 
 // Lifecycle Module constants
 const EPOCH_LENGTH = 3600 * 24 * 7; // 1 week
 const STAKING_LENGTH = 3600 * 4; // 4 hours
 const TRADING_LENGTH = 3600 * 24 * 2; // 2 days
-const EPOCH_START = ~~(Date.now() / 1000) - 3600; // Now - 1hour
 
 // Strategy Module constants
 const OPIUM_REGISTRY = "0x17b6ffe276e8A4a299a5a87a656aFc5b8FA3ee4a"; // Arbitrum One
 const OPIUM_LENS = "0xfa01Fd6118445F811753D96178F2ef8AE77caa53"; // Arbitrum One
 
-describe("StakingModule", function () {
+describe("E2E Test", function () {
   let deployer: SignerWithAddress;
   let staker: SignerWithAddress;
   let buyer: SignerWithAddress;
@@ -41,7 +46,13 @@ describe("StakingModule", function () {
   let stakingModule: StakingModule;
   let strategyModule: OptionsSellingStrategyModule;
 
+  let snapshotId: any;
+
+  let epochStart: number;
+
   before(async () => {
+    snapshotId = await takeSnapshot();
+
     [deployer, staker, buyer, advisor] = await ethers.getSigners();
 
     // SETUP STARTED
@@ -77,9 +88,11 @@ describe("StakingModule", function () {
     await accountingModule.deployed();
 
     // Deploy Lifecycle Module
+    const now = await getCurrentTimestamp();
+    epochStart = now - 3600; // Now - 1hour
     const LifecycleModule = await ethers.getContractFactory("LifecycleModule");
     const lifecycleModule = await LifecycleModule.deploy(
-      EPOCH_START,
+      epochStart,
       [EPOCH_LENGTH, STAKING_LENGTH, TRADING_LENGTH],
       registryModule.address,
       gnosisSafe.address
@@ -108,7 +121,6 @@ describe("StakingModule", function () {
     );
     await strategyModule.deployed();
 
-    await enableModule(gnosisSafe, registryModule.address, deployer);
     await enableModule(gnosisSafe, stakingModule.address, deployer);
     await enableModule(gnosisSafe, strategyModule.address, deployer);
 
@@ -120,8 +132,18 @@ describe("StakingModule", function () {
       stakingModule,
       deployer
     );
+    await enableStrategyInRegistry(
+      gnosisSafe,
+      registryModule,
+      strategyModule.address,
+      deployer
+    );
 
     await setStrategyAdvisor(gnosisSafe, strategyModule, advisor, deployer);
+  });
+
+  after(async () => {
+    await restoreSnapshot(snapshotId);
   });
 
   it("should deposit and withdraw", async function () {
@@ -139,7 +161,7 @@ describe("StakingModule", function () {
       .connect(staker)
       .approve(stakingModule.address, DEPOSIT_AMOUNT);
 
-    await stakingModule.connect(staker).deposit(DEPOSIT_AMOUNT);
+    await stakingModule.connect(staker).deposit(DEPOSIT_AMOUNT, staker.address);
 
     expect(await mockToken.balanceOf(staker.address)).to.equal("0");
     expect(await stakingModule.balanceOf(staker.address)).to.equal(
@@ -154,7 +176,9 @@ describe("StakingModule", function () {
     );
 
     // Withdraw
-    await stakingModule.connect(staker).withdraw(WITHDRAW_AMOUNT);
+    await stakingModule
+      .connect(staker)
+      .withdraw(WITHDRAW_AMOUNT, staker.address, staker.address);
 
     expect(await mockToken.balanceOf(staker.address)).to.equal(WITHDRAW_AMOUNT);
     expect(await stakingModule.balanceOf(staker.address)).to.equal(diff);
@@ -177,7 +201,7 @@ describe("StakingModule", function () {
 
     const derivative = {
       margin: ONE_ETH,
-      endTime: EPOCH_START + EPOCH_LENGTH,
+      endTime: epochStart + EPOCH_LENGTH,
       params: [STRIKE_PRICE, COLLATERALIZATION, 0],
       syntheticId: SYNTHETIC_ID_ADDRESS,
       token: mockToken.address,

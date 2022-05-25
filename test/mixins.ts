@@ -161,3 +161,52 @@ export const setStrategyAdvisor = async (
     )}000000000000000000000000000000000000000000000000000000000000000001`
   );
 };
+
+export const enableStrategyInRegistry = async (
+  gnosisSafe: GnosisSafe,
+  registryModule: RegistryModule,
+  strategyAddress: string,
+  owner: SignerWithAddress
+) => {
+  const enableStrategyData = registryModule.interface.encodeFunctionData(
+    "enableStrategy",
+    [strategyAddress]
+  );
+
+  await gnosisSafe.execTransaction(
+    registryModule.address,
+    "0",
+    enableStrategyData,
+    "0",
+    "0",
+    "0",
+    "0",
+    ethers.constants.AddressZero,
+    ethers.constants.AddressZero,
+    `0x000000000000000000000000${owner.address.substring(
+      2
+    )}000000000000000000000000000000000000000000000000000000000000000001`
+  );
+};
+
+export const sendArbitraryTx = async (
+  gnosisSafe: GnosisSafe,
+  target: string,
+  data: string,
+  owner: SignerWithAddress
+) => {
+  await gnosisSafe.execTransaction(
+    target,
+    "0",
+    data,
+    "0",
+    "0",
+    "0",
+    "0",
+    ethers.constants.AddressZero,
+    ethers.constants.AddressZero,
+    `0x000000000000000000000000${owner.address.substring(
+      2
+    )}000000000000000000000000000000000000000000000000000000000000000001`
+  );
+};
