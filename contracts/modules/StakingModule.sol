@@ -14,6 +14,8 @@ import { FixedPointMathLib } from "../utils/FixedPointMathLib.sol";
 import "hardhat/console.sol";
 
 /**
+    @notice Staking Module is an ERC20 tokenized position in the pool that follows EIP4626 standard for liquidity provision
+
     Error codes:
         - S1 = can't deposit
         - S2 = can't withdraw
