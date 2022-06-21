@@ -33,15 +33,41 @@ const EPOCH_LENGTH = 3600 * 24 * 7; // 1 week
 const STAKING_LENGTH = 3600 * 4; // 4 hours
 const TRADING_LENGTH = 3600 * 24 * 2; // 2 days
 
+// Accounting module params
+const YEAR_SECONDS = 360 * 24 * 3600; // 1 year in seconds
+const BASE = ethers.utils.parseEther("1");
+const PROFIT_FEE = ethers.utils.parseEther("0.1");
+const ANNUAL_MAINTENANCE_FEE = ethers.utils.parseEther("0.02");
+
 // Contacts for tests
 const DEPOSIT_AMOUNT = ethers.utils.parseEther("200");
 const WITHDRAWAL_AMOUNT = ethers.utils.parseEther("100");
 const UTILIZED_AMOUNT = ethers.utils.parseEther("20");
-const UTILIZED_RATIO = ethers.utils.parseEther("0.1");
 const PREMIUM_AMOUNT = ethers.utils.parseEther("10");
-const FEE_AMOUNT = ethers.utils.parseEther("0.1");
 
-const TOTAL_DEPOSITED_AMOUNT = DEPOSIT_AMOUNT.sub(WITHDRAWAL_AMOUNT);
+const TOTAL_DEPOSITED_AMOUNT = DEPOSIT_AMOUNT.sub(WITHDRAWAL_AMOUNT); // 100
+
+const TOTAL_AVAILABLE_AMOUNT =
+  TOTAL_DEPOSITED_AMOUNT.add(PREMIUM_AMOUNT).sub(UTILIZED_AMOUNT); // 90
+
+const TOTAL_UTILIZED_AMOUNT = UTILIZED_AMOUNT.sub(PREMIUM_AMOUNT); // 10
+const TOTAL_UTILIZED_RATIO = TOTAL_UTILIZED_AMOUNT.mul(BASE).div(
+  TOTAL_DEPOSITED_AMOUNT
+); // 0.1
+
+const PROFIT_FEE_AMOUNT = PREMIUM_AMOUNT.mul(PROFIT_FEE).div(BASE); // 1
+const MAINTENANCE_FEE_AMOUNT = TOTAL_DEPOSITED_AMOUNT.mul(
+  ANNUAL_MAINTENANCE_FEE
+)
+  .mul(EPOCH_LENGTH)
+  .div(YEAR_SECONDS)
+  .div(BASE); // 0.03(8)
+
+const FINAL_LIQUIDITY_AMOUNT = TOTAL_DEPOSITED_AMOUNT.add(PREMIUM_AMOUNT)
+  .sub(PROFIT_FEE_AMOUNT)
+  .sub(MAINTENANCE_FEE_AMOUNT); // 109.86(1)
+
+const TOTAL_FEES_AMOUNT = PROFIT_FEE_AMOUNT.add(MAINTENANCE_FEE_AMOUNT); // 1.03(8)
 
 describe("AccountingModule", function () {
   let accountingModule: AccountingModule;
@@ -246,16 +272,14 @@ describe("AccountingModule", function () {
     expect(hasPosition).to.be.equal(true);
 
     const availableLiquidity = await accountingModule.getAvailableLiquidity();
-    expect(availableLiquidity).to.be.equal(
-      TOTAL_DEPOSITED_AMOUNT.sub(UTILIZED_AMOUNT).add(PREMIUM_AMOUNT)
-    );
+    expect(availableLiquidity).to.be.equal(TOTAL_AVAILABLE_AMOUNT);
 
     const utilizedLiquidity = await accountingModule.getUtilizedLiquidity();
-    expect(utilizedLiquidity).to.be.equal(UTILIZED_AMOUNT.sub(PREMIUM_AMOUNT));
+    expect(utilizedLiquidity).to.be.equal(TOTAL_UTILIZED_AMOUNT);
 
     const liquidityUtilizationRatio =
       await accountingModule.getLiquidityUtilizationRatio();
-    expect(liquidityUtilizationRatio).to.be.equal(UTILIZED_RATIO);
+    expect(liquidityUtilizationRatio).to.be.equal(TOTAL_UTILIZED_RATIO);
   });
 
   it("should correctly return liquidity by the strategy module", async function () {
@@ -291,24 +315,20 @@ describe("AccountingModule", function () {
     await accountingModule.connect(strategyModule).rebalance();
 
     const totalLiquidity = await accountingModule.getTotalLiquidity();
-    expect(totalLiquidity).to.be.equal(
-      TOTAL_DEPOSITED_AMOUNT.add(PREMIUM_AMOUNT).sub(FEE_AMOUNT)
-    );
+    expect(totalLiquidity).to.be.equal(FINAL_LIQUIDITY_AMOUNT);
 
     const utilizedLiquidity = await accountingModule.getUtilizedLiquidity();
     expect(utilizedLiquidity).to.be.equal(0);
 
     const availableLiquidity = await accountingModule.getAvailableLiquidity();
-    expect(availableLiquidity).to.be.equal(
-      TOTAL_DEPOSITED_AMOUNT.add(PREMIUM_AMOUNT).sub(FEE_AMOUNT)
-    );
+    expect(availableLiquidity).to.be.equal(FINAL_LIQUIDITY_AMOUNT);
 
     const liquidityUtilizationRatio =
       await accountingModule.getLiquidityUtilizationRatio();
     expect(liquidityUtilizationRatio).to.be.equal(0);
 
     const accumulatedFees = await accountingModule.getAccumulatedFees();
-    expect(accumulatedFees).to.be.equal(FEE_AMOUNT);
+    expect(accumulatedFees).to.be.equal(TOTAL_FEES_AMOUNT);
   });
 
   it("should correctly set fee collector", async () => {
@@ -331,7 +351,7 @@ describe("AccountingModule", function () {
     const feeCollectorBalance = await mockToken.balanceOf(
       feeCollectorSigner.address
     );
-    expect(feeCollectorBalance).to.be.equal(FEE_AMOUNT);
+    expect(feeCollectorBalance).to.be.equal(TOTAL_FEES_AMOUNT);
 
     const accumulatedFees = await accountingModule.getAccumulatedFees();
     expect(accumulatedFees).to.be.equal("0");

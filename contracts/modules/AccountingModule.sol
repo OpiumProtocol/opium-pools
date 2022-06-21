@@ -7,10 +7,12 @@ import "../base/RegistryManager.sol";
 
 import "../interfaces/IAccountingModule.sol";
 
+import "hardhat/console.sol";
+
 /**
     @notice Accounting Module performs accounting processes for the pool: calculates total and available liquidity, fees and tracks held positions
     Error cores:
-        - AM1 = Only StakingModule or StrategyModule allowed
+        - AM1 = Only StakingModule allowed
         - AM2 = Only enabled strategy allowed
         - AM3 = Wrong input
         - AM4 = Only fee collector allowed
@@ -21,7 +23,9 @@ contract AccountingModule is IAccountingModule, RegistryManager {
     using EnumerableSet for EnumerableSet.AddressSet;
 
     uint256 constant public BASE = 1e18;
-    uint256 constant public FEE = 0.01e18;
+    uint256 constant public YEAR_SECONDS = 360 days;
+    uint256 constant public IMMEDIATE_PROFIT_FEE = 0.1e18;
+    uint256 constant public ANNUAL_MAINTENANCE_FEE = 0.02e18;
 
     IERC20Metadata private _underlying;
     address private _feeCollector;
@@ -42,13 +46,12 @@ contract AccountingModule is IAccountingModule, RegistryManager {
         _setUnderlying(underlying_);
     }
 
-    modifier onlyStakingOrStrategyModule() {
+    modifier onlyStakingModule() {
         require(
             (
                 msg.sender == getRegistryModule()
                     .getRegistryAddresses()
-                    .stakingModule ||
-                getRegistryModule().isStrategyEnabled(msg.sender)
+                    .stakingModule
             ),
             "AM1"
         );
@@ -128,7 +131,7 @@ contract AccountingModule is IAccountingModule, RegistryManager {
     }
 
     // External setters
-    function changeTotalLiquidity(uint256 amount_, bool add_) override external onlyStakingOrStrategyModule {
+    function changeTotalLiquidity(uint256 amount_, bool add_) override external onlyStakingModule {
         if (add_) {
             _setTotalLiquidity(_totalLiquidity + amount_);
         } else {
@@ -153,10 +156,16 @@ contract AccountingModule is IAccountingModule, RegistryManager {
         // Made profit
         if (currentBalance > previousBalance) {
             uint256 profit = currentBalance - previousBalance;
-            uint256 fee = profit * FEE / BASE;
-            profit -= fee;
-            _setAccumulatedFees(_accumulatedFees + fee);
-            _setTotalLiquidity(_totalLiquidity + profit);
+            uint256 profitFee = profit * IMMEDIATE_PROFIT_FEE / BASE;
+            profit -= profitFee;
+            uint256 maintenanceFee = 
+                _totalLiquidity
+                    * ANNUAL_MAINTENANCE_FEE
+                    * getRegistryModule().getRegistryAddresses().lifecycleModule.getEpochLength()
+                    / YEAR_SECONDS
+                    / BASE;
+            _setAccumulatedFees(_accumulatedFees + profitFee + maintenanceFee);
+            _setTotalLiquidity(_totalLiquidity + profit - maintenanceFee);
         } else {
             // Made losses
             uint256 loss = previousBalance - currentBalance;
