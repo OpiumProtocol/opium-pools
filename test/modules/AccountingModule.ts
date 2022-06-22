@@ -356,4 +356,42 @@ describe("AccountingModule", function () {
     const accumulatedFees = await accountingModule.getAccumulatedFees();
     expect(accumulatedFees).to.be.equal("0");
   });
+
+  it("should correctly change fees by executor and revert unauthorized access", async () => {
+    const newImmediateFee = ethers.utils.parseEther("1");
+    const newAnnualFee = ethers.utils.parseEther("2");
+    await expect(
+      accountingModule
+        .connect(feeCollectorSigner)
+        .setImmediateProfitFee(newImmediateFee)
+    ).to.be.revertedWith("SM1");
+    await expect(
+      accountingModule
+        .connect(feeCollectorSigner)
+        .setAnnualMaintenanceFee(newAnnualFee)
+    ).to.be.revertedWith("SM1");
+
+    await sendArbitraryTx(
+      gnosisSafe,
+      accountingModule.address,
+      accountingModule.interface.encodeFunctionData("setImmediateProfitFee", [
+        newImmediateFee,
+      ]),
+      deployer
+    );
+    await sendArbitraryTx(
+      gnosisSafe,
+      accountingModule.address,
+      accountingModule.interface.encodeFunctionData("setAnnualMaintenanceFee", [
+        newAnnualFee,
+      ]),
+      deployer
+    );
+
+    const immediateFeeAfter = await accountingModule.getImmediateProfitFee();
+    const annualFeeAfter = await accountingModule.getAnnualMaintenanceFee();
+
+    expect(immediateFeeAfter).to.be.eq(newImmediateFee);
+    expect(annualFeeAfter).to.be.eq(annualFeeAfter);
+  });
 });

@@ -24,11 +24,14 @@ contract AccountingModule is IAccountingModule, RegistryManager {
 
     uint256 constant public BASE = 1e18;
     uint256 constant public YEAR_SECONDS = 360 days;
-    uint256 constant public IMMEDIATE_PROFIT_FEE = 0.1e18;
-    uint256 constant public ANNUAL_MAINTENANCE_FEE = 0.02e18;
 
-    IERC20Metadata private _underlying;
+    // Fees
+    uint256 private _immediateProfitFee = 0.1e18;
+    uint256 private _annualMaintenanceFee = 0.02e18;
     address private _feeCollector;
+
+    // Accounting
+    IERC20Metadata private _underlying;
 
     uint256 private _totalLiquidity;
     uint256 private _accumulatedFees;
@@ -130,6 +133,14 @@ contract AccountingModule is IAccountingModule, RegistryManager {
         return _feeCollector;
     }
 
+    function getImmediateProfitFee() override external view returns (uint256) {
+        return _immediateProfitFee;
+    }
+
+    function getAnnualMaintenanceFee() override external view returns (uint256) {
+        return _annualMaintenanceFee;
+    }
+
     // External setters
     function changeTotalLiquidity(uint256 amount_, bool add_) override external onlyStakingModule {
         if (add_) {
@@ -156,11 +167,11 @@ contract AccountingModule is IAccountingModule, RegistryManager {
         // Made profit
         if (currentBalance > previousBalance) {
             uint256 profit = currentBalance - previousBalance;
-            uint256 profitFee = profit * IMMEDIATE_PROFIT_FEE / BASE;
+            uint256 profitFee = profit * _immediateProfitFee / BASE;
             profit -= profitFee;
             uint256 maintenanceFee = 
                 _totalLiquidity
-                    * ANNUAL_MAINTENANCE_FEE
+                    * _annualMaintenanceFee
                     * getRegistryModule().getRegistryAddresses().lifecycleModule.getEpochLength()
                     / YEAR_SECONDS
                     / BASE;
@@ -189,6 +200,14 @@ contract AccountingModule is IAccountingModule, RegistryManager {
         _setFeeCollector(feeCollector_);
     }
 
+    function setImmediateProfitFee(uint256 immediateProfitFee_) override external onlyExecutor {
+        _setImmediateProfitFee(immediateProfitFee_);
+    }
+
+    function setAnnualMaintenanceFee(uint256 annualMaintenanceFee_) override external onlyExecutor {
+        _setAnnualMaintenanceFee(annualMaintenanceFee_);
+    }
+
     // Private setters
     function _setUnderlying(IERC20Metadata underlying_) private {
         require(address(underlying_) != address(0), "AM3");
@@ -205,5 +224,13 @@ contract AccountingModule is IAccountingModule, RegistryManager {
 
     function _setFeeCollector(address feeCollector_) private {
         _feeCollector = feeCollector_;
+    }
+
+    function _setImmediateProfitFee(uint256 immediateProfitFee_) private {
+        _immediateProfitFee = immediateProfitFee_;
+    }
+
+    function _setAnnualMaintenanceFee(uint256 annualMaintenanceFee_) private {
+        _annualMaintenanceFee = annualMaintenanceFee_;
     }
 }
