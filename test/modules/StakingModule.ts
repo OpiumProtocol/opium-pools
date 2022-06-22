@@ -16,7 +16,7 @@ import {
   AccountingModule,
   RegistryModule,
   MockToken,
-  GnosisSafe,
+  GnosisSafeL2,
   LifecycleModule,
   StakingModule,
 } from "../../typechain";
@@ -78,7 +78,7 @@ describe("StakingModule", function () {
   let deployer: SignerWithAddress;
   let strategyModule: SignerWithAddress;
 
-  let gnosisSafe: GnosisSafe;
+  let gnosisSafe: GnosisSafeL2;
 
   let mockToken: MockToken;
   let mockPosition: MockToken;

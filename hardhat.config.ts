@@ -48,7 +48,7 @@ const config: HardhatUserConfig = {
   },
   dependencyCompiler: {
     paths: [
-      "@gnosis.pm/safe-contracts/contracts/GnosisSafe.sol",
+      "@gnosis.pm/safe-contracts/contracts/GnosisSafeL2.sol",
       "@gnosis.pm/safe-contracts/contracts/proxies/GnosisSafeProxyFactory.sol",
     ],
   },

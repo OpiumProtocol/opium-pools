@@ -14,7 +14,7 @@ import {
 
 import {
   MockToken,
-  GnosisSafe,
+  GnosisSafeL2,
   StakingModule,
   OptionsSellingStrategyModule,
 } from "./../typechain/";
@@ -41,7 +41,7 @@ describe("E2E Test", function () {
   let buyer: SignerWithAddress;
   let advisor: SignerWithAddress;
 
-  let gnosisSafe: GnosisSafe;
+  let gnosisSafe: GnosisSafeL2;
   let mockToken: MockToken;
   let stakingModule: StakingModule;
   let strategyModule: OptionsSellingStrategyModule;
