@@ -20,6 +20,8 @@ contract OptionsSellingStrategyModule is IStrategyModule, RegistryManager, Acces
   using SafeERC20Upgradeable for IERC20MetadataUpgradeable;
 
   bytes32 public constant ADVISOR_ROLE = keccak256("ADVISOR_ROLE");
+  
+  uint256 public constant BASE = 1e18;
 
   IOpiumRegistry private _opiumRegistry;
   IOpiumOnChainPositionsLens private _opiumLens;
@@ -73,8 +75,8 @@ contract OptionsSellingStrategyModule is IStrategyModule, RegistryManager, Acces
     (margins[0], margins[1]) = IOpiumDerivativeLogic(derivative_.syntheticId).getMargin(derivative_);
     uint256 totalMargin = margins[0] + margins[1];
 
-    availableQuantity = availableLiquidity / totalMargin;
-    requiredMargin = availableQuantity * totalMargin;
+    availableQuantity = availableLiquidity * BASE / totalMargin;
+    requiredMargin = availableQuantity * totalMargin / BASE;
   }
 
   // External setters
@@ -95,7 +97,7 @@ contract OptionsSellingStrategyModule is IStrategyModule, RegistryManager, Acces
     data = abi.encodeWithSelector(
       bytes4(keccak256(bytes("createAndMint((uint256,uint256,uint256[],address,address,address),uint256,address[2])"))),
       derivative_,
-      availableQuantity * 1e18,
+      availableQuantity,
       [address(_executor),address(_executor)]
     );
     _executeCall(_opiumRegistry.getProtocolAddresses().core, data);
@@ -122,9 +124,9 @@ contract OptionsSellingStrategyModule is IStrategyModule, RegistryManager, Acces
     );
 
     // Transfer premium in
-    accountingModule.getUnderlying().safeTransferFrom(msg.sender, address(_executor), quantity_ * _premiums[position_]);
+    accountingModule.getUnderlying().safeTransferFrom(msg.sender, address(_executor), quantity_ * _premiums[position_] / BASE);
     // Transfer positions out
-    bytes memory data = abi.encodeWithSelector(bytes4(keccak256(bytes("transfer(address,uint256)"))), msg.sender, quantity_ * 1e18);
+    bytes memory data = abi.encodeWithSelector(bytes4(keccak256(bytes("transfer(address,uint256)"))), msg.sender, quantity_);
     _executeCall(position_, data);
   }
 

@@ -10,8 +10,7 @@ describe("RegistryModule", function () {
   let accountingModule: SignerWithAddress;
   let lifecycleModule: SignerWithAddress;
   let stakingModule: SignerWithAddress;
-  let strategyOne: SignerWithAddress;
-  let strategyTwo: SignerWithAddress;
+  let strategyModule: SignerWithAddress;
 
   before(async () => {
     [
@@ -19,8 +18,7 @@ describe("RegistryModule", function () {
       accountingModule,
       lifecycleModule,
       stakingModule,
-      strategyOne,
-      strategyTwo,
+      strategyModule,
     ] = await ethers.getSigners();
     // Deploy Registry Module
     const RegistryModule = await ethers.getContractFactory("RegistryModule");
@@ -46,6 +44,7 @@ describe("RegistryModule", function () {
       accountingModule: accountingModule.address,
       lifecycleModule: lifecycleModule.address,
       stakingModule: stakingModule.address,
+      strategyModule: strategyModule.address,
     });
 
     const registryAddressesAfter = await registryModule.getRegistryAddresses();
@@ -67,6 +66,7 @@ describe("RegistryModule", function () {
         accountingModule: ethers.constants.AddressZero,
         lifecycleModule: lifecycleModule.address,
         stakingModule: stakingModule.address,
+        strategyModule: strategyModule.address,
       })
     ).to.be.revertedWith("R1");
     await expect(
@@ -74,6 +74,7 @@ describe("RegistryModule", function () {
         accountingModule: accountingModule.address,
         lifecycleModule: ethers.constants.AddressZero,
         stakingModule: stakingModule.address,
+        strategyModule: strategyModule.address,
       })
     ).to.be.revertedWith("R1");
     await expect(
@@ -81,6 +82,15 @@ describe("RegistryModule", function () {
         accountingModule: accountingModule.address,
         lifecycleModule: lifecycleModule.address,
         stakingModule: ethers.constants.AddressZero,
+        strategyModule: strategyModule.address,
+      })
+    ).to.be.revertedWith("R1");
+    await expect(
+      registryModule.setRegistryAddresses({
+        accountingModule: accountingModule.address,
+        lifecycleModule: lifecycleModule.address,
+        stakingModule: stakingModule.address,
+        strategyModule: ethers.constants.AddressZero,
       })
     ).to.be.revertedWith("R1");
 
@@ -89,68 +99,9 @@ describe("RegistryModule", function () {
       registryModule.connect(accountingModule).setRegistryAddresses({
         accountingModule: accountingModule.address,
         lifecycleModule: lifecycleModule.address,
-        stakingModule: ethers.constants.AddressZero,
+        stakingModule: stakingModule.address,
+        strategyModule: strategyModule.address,
       })
     ).to.be.revertedWith("SM1");
-  });
-
-  it("should correctly enable / disable strategies and prevent unauthorized access", async () => {
-    // Enable strategies
-    const isStrategyOneEnabledBefore = await registryModule.isStrategyEnabled(
-      strategyOne.address
-    );
-    expect(isStrategyOneEnabledBefore).to.be.equal(false);
-
-    await expect(
-      registryModule.connect(strategyOne).enableStrategy(strategyOne.address)
-    ).to.be.revertedWith("SM1");
-    await registryModule.enableStrategy(strategyOne.address);
-
-    const isStrategyOneEnabledAfter = await registryModule.isStrategyEnabled(
-      strategyOne.address
-    );
-    expect(isStrategyOneEnabledAfter).to.be.equal(true);
-
-    const isStrategyTwoEnabledBefore = await registryModule.isStrategyEnabled(
-      strategyTwo.address
-    );
-    expect(isStrategyTwoEnabledBefore).to.be.equal(false);
-
-    await registryModule.enableStrategy(strategyTwo.address);
-
-    const isStrategyTwoEnabledAfter = await registryModule.isStrategyEnabled(
-      strategyTwo.address
-    );
-    expect(isStrategyTwoEnabledAfter).to.be.equal(true);
-
-    const enabledStrategiesBefore = await registryModule.getEnabledStrategies();
-    expect(
-      enabledStrategiesBefore.map((a) => a.toLowerCase()).sort()
-    ).to.be.eql(
-      [strategyOne.address, strategyTwo.address]
-        .map((a) => a.toLowerCase())
-        .sort()
-    );
-
-    // Disable strategies
-    await expect(
-      registryModule.connect(strategyOne).disableStrategy(strategyOne.address)
-    ).to.be.revertedWith("SM1");
-    await registryModule.disableStrategy(strategyOne.address);
-
-    const isStrategyOneEnabledFinal = await registryModule.isStrategyEnabled(
-      strategyOne.address
-    );
-    expect(isStrategyOneEnabledFinal).to.be.equal(false);
-
-    await registryModule.disableStrategy(strategyTwo.address);
-
-    const isStrategyTwoEnabledFinal = await registryModule.isStrategyEnabled(
-      strategyTwo.address
-    );
-    expect(isStrategyTwoEnabledFinal).to.be.equal(false);
-
-    const enabledStrategiesAfter = await registryModule.getEnabledStrategies();
-    expect(enabledStrategiesAfter).to.be.eql([]);
   });
 });

@@ -8,7 +8,6 @@ import {
   deployGnosisSafe,
   enableModule,
   setupRegistry,
-  enableStrategyInRegistry,
   sendArbitraryTx,
 } from "../mixins";
 
@@ -164,11 +163,6 @@ describe("StakingModule", function () {
       accountingModule,
       lifecycleModule,
       stakingModule,
-      deployer
-    );
-    await enableStrategyInRegistry(
-      gnosisSafe,
-      registryModule,
       strategyModule.address,
       deployer
     );
