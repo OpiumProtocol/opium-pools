@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: agpl-3.0
 pragma solidity ^0.8.0;
 
-import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
+import "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/IERC20MetadataUpgradeable.sol";
 
 interface IAccountingModule {
-  function getUnderlying() external view returns (IERC20Metadata);
+  function getUnderlying() external view returns (IERC20MetadataUpgradeable);
   function getTotalLiquidity() external view returns (uint256);
   function getUtilizedLiquidity() external view returns (uint256);
   function getAvailableLiquidity() external view returns (uint256);

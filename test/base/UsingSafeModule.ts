@@ -1,19 +1,21 @@
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import { expect } from "chai";
-import { ethers } from "hardhat";
+import { ethers, upgrades } from "hardhat";
 
-import { SafeModule } from "../../typechain";
+import { UsingSafeModule } from "../../typechain";
 
-describe("SafeModule", function () {
-  let safeModule: SafeModule;
+describe("UsingSafeModule", function () {
+  let safeModule: UsingSafeModule;
   let deployer: SignerWithAddress;
   let newExecutor: SignerWithAddress;
 
   before(async () => {
     [deployer, newExecutor] = await ethers.getSigners();
     // Deploy SafeModule
-    const SafeModule = await ethers.getContractFactory("SafeModule");
-    safeModule = await SafeModule.deploy(deployer.address);
+    const SafeModule = await ethers.getContractFactory("UsingSafeModule");
+    safeModule = <UsingSafeModule>(
+      await upgrades.deployProxy(SafeModule, [deployer.address])
+    );
     await safeModule.deployed();
   });
 

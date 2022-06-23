@@ -13,7 +13,12 @@ import "./SafeModule.sol";
 abstract contract RegistryManager is SafeModule {
     IRegistryModule internal _registryModule;
     
-    constructor(IRegistryModule registryModule_) {
+    function __RegistryManager_init(IRegistryModule registryModule_, Executor executor_) internal onlyInitializing {
+        __SafeModule_init(executor_);
+        __RegistryManager_init_unchained(registryModule_);
+    }
+
+    function __RegistryManager_init_unchained(IRegistryModule registryModule_) internal onlyInitializing {
         _setRegistryModule(registryModule_);
     }
 

@@ -1,6 +1,6 @@
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import { expect } from "chai";
-import { ethers } from "hardhat";
+import { ethers, upgrades } from "hardhat";
 
 import {
   deployGnosisSafeSingleton,
@@ -112,17 +112,21 @@ describe("StakingModule", function () {
 
     // Deploy Registry Module
     const RegistryModule = await ethers.getContractFactory("RegistryModule");
-    registryModule = await RegistryModule.deploy(gnosisSafe.address);
+    registryModule = <RegistryModule>(
+      await upgrades.deployProxy(RegistryModule, [gnosisSafe.address])
+    );
     await registryModule.deployed();
 
     // Deploy Accounting Module
     const AccountingModule = await ethers.getContractFactory(
       "AccountingModule"
     );
-    accountingModule = await AccountingModule.deploy(
-      mockToken.address,
-      registryModule.address,
-      gnosisSafe.address
+    accountingModule = <AccountingModule>(
+      await upgrades.deployProxy(AccountingModule, [
+        mockToken.address,
+        registryModule.address,
+        gnosisSafe.address,
+      ])
     );
     await accountingModule.deployed();
 
@@ -131,21 +135,25 @@ describe("StakingModule", function () {
     currentEpochStart = now - STAKING_LENGTH / 2;
 
     const LifecycleModule = await ethers.getContractFactory("LifecycleModule");
-    lifecycleModule = await LifecycleModule.deploy(
-      currentEpochStart,
-      [EPOCH_LENGTH, STAKING_LENGTH, TRADING_LENGTH],
-      registryModule.address,
-      deployer.address
+    lifecycleModule = <LifecycleModule>(
+      await upgrades.deployProxy(LifecycleModule, [
+        currentEpochStart,
+        [EPOCH_LENGTH, STAKING_LENGTH, TRADING_LENGTH],
+        registryModule.address,
+        deployer.address,
+      ])
     );
     await lifecycleModule.deployed();
 
     // Deploy Staking Module
     const StakingModule = await ethers.getContractFactory("StakingModule");
-    stakingModule = await StakingModule.deploy(
-      "LP Token",
-      "LPT",
-      registryModule.address,
-      gnosisSafe.address
+    stakingModule = <StakingModule>(
+      await upgrades.deployProxy(StakingModule, [
+        "LP Token",
+        "LPT",
+        registryModule.address,
+        gnosisSafe.address,
+      ])
     );
     await stakingModule.deployed();
 

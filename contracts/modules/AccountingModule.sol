@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: agpl-3.0
 pragma solidity ^0.8.0;
 
-import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
+import "@openzeppelin/contracts-upgradeable/utils/structs/EnumerableSetUpgradeable.sol";
 
 import "../base/RegistryManager.sol";
 
@@ -20,33 +20,35 @@ import "hardhat/console.sol";
         - AM6 = Only fee collector or executor allowed
  */
 contract AccountingModule is IAccountingModule, RegistryManager {
-    using EnumerableSet for EnumerableSet.AddressSet;
+    using EnumerableSetUpgradeable for EnumerableSetUpgradeable.AddressSet;
 
     uint256 constant public BASE = 1e18;
     uint256 constant public YEAR_SECONDS = 360 days;
 
     // Fees
-    uint256 private _immediateProfitFee = 0.1e18;
-    uint256 private _annualMaintenanceFee = 0.02e18;
+    uint256 private _immediateProfitFee;
+    uint256 private _annualMaintenanceFee;
     address private _feeCollector;
 
     // Accounting
-    IERC20Metadata private _underlying;
+    IERC20MetadataUpgradeable private _underlying;
 
     uint256 private _totalLiquidity;
     uint256 private _accumulatedFees;
 
-    EnumerableSet.AddressSet private _holdingPositions;
+    EnumerableSetUpgradeable.AddressSet private _holdingPositions;
 
-    constructor(
-        IERC20Metadata underlying_,
+    function initialize(
+        IERC20MetadataUpgradeable underlying_,
         IRegistryModule registryModule_,
         Executor executor_
     )
-        RegistryManager(registryModule_)
-        SafeModule(executor_)
+        external initializer
     {
+        __RegistryManager_init(registryModule_, executor_);
         _setUnderlying(underlying_);
+        _setImmediateProfitFee(0.1e18);
+        _setAnnualMaintenanceFee(0.02e18);
     }
 
     modifier onlyStakingModule() {
@@ -86,7 +88,7 @@ contract AccountingModule is IAccountingModule, RegistryManager {
     }
 
     // External getters
-    function getUnderlying() override external view returns (IERC20Metadata) {
+    function getUnderlying() override external view returns (IERC20MetadataUpgradeable) {
         return _underlying;
     }
 
@@ -209,7 +211,7 @@ contract AccountingModule is IAccountingModule, RegistryManager {
     }
 
     // Private setters
-    function _setUnderlying(IERC20Metadata underlying_) private {
+    function _setUnderlying(IERC20MetadataUpgradeable underlying_) private {
         require(address(underlying_) != address(0), "AM3");
         _underlying = underlying_;
     }

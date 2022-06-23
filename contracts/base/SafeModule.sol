@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: agpl-3.0
 pragma solidity ^0.8.0;
 
-import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 
 contract Enum {
     enum Operation {
@@ -27,7 +27,7 @@ interface Executor {
         - SM2 = Wrong input
         - SM3 = SafeModule execution failed
  */
-contract SafeModule is ReentrancyGuard {
+contract SafeModule is ReentrancyGuardUpgradeable {
     Executor internal _executor;
 
     modifier onlyExecutor() {
@@ -35,7 +35,12 @@ contract SafeModule is ReentrancyGuard {
         _;
     }
     
-    constructor(Executor executor_) {
+    function __SafeModule_init(Executor executor_) internal onlyInitializing {
+        __ReentrancyGuard_init();
+        __SafeModule_init_unchained(executor_);
+    }
+
+    function __SafeModule_init_unchained(Executor executor_) internal onlyInitializing {
         _setExecutor(executor_);
     }
 

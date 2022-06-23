@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: agpl-3.0
 pragma solidity ^0.8.0;
 
-import "@openzeppelin/contracts/access/AccessControl.sol";
-import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
 
 import "../../external/opium/IOpiumRegistry.sol";
 import "../../external/opium/IOpiumCore.sol";
@@ -15,9 +15,9 @@ import "../../base/SafeModule.sol";
 
 import "../../interfaces/IStrategyModule.sol";
 
-contract OptionsSellingStrategyModule is IStrategyModule, RegistryManager, AccessControl {
+contract OptionsSellingStrategyModule is IStrategyModule, RegistryManager, AccessControlUpgradeable {
   using LibOpiumCalculator for uint256;
-  using SafeERC20 for IERC20Metadata;
+  using SafeERC20Upgradeable for IERC20MetadataUpgradeable;
 
   bytes32 public constant ADVISOR_ROLE = keccak256("ADVISOR_ROLE");
 
@@ -26,15 +26,16 @@ contract OptionsSellingStrategyModule is IStrategyModule, RegistryManager, Acces
 
   mapping (address => uint256) _premiums;
 
-  constructor(
+  function initialize(
     IOpiumRegistry opiumRegistry_,
     IOpiumOnChainPositionsLens opiumLens_,
     IRegistryModule registryModule_,
     Executor executor_
   )
-    RegistryManager(registryModule_)
-    SafeModule(executor_)
+    external initializer
   {
+    __RegistryManager_init(registryModule_, executor_);
+
     _setupRole(DEFAULT_ADMIN_ROLE, address(executor_));
 
     _setOptionRegistry(opiumRegistry_);
@@ -129,8 +130,8 @@ contract OptionsSellingStrategyModule is IStrategyModule, RegistryManager, Acces
 
   function executePositions(IOpiumCore.Derivative memory derivative_) external canRebalance {
     (address longPositionAddress, address shortPositionAddress) = _opiumLens.predictPositionsAddressesByDerivative(derivative_);
-    uint256 longPositionBalance = IERC20Metadata(longPositionAddress).balanceOf(address(_executor));
-    uint256 shortPositionBalance = IERC20Metadata(shortPositionAddress).balanceOf(address(_executor));
+    uint256 longPositionBalance = IERC20MetadataUpgradeable(longPositionAddress).balanceOf(address(_executor));
+    uint256 shortPositionBalance = IERC20MetadataUpgradeable(shortPositionAddress).balanceOf(address(_executor));
 
     // Check if positions redemption is possible
     if (longPositionBalance != 0 && shortPositionBalance != 0) {
