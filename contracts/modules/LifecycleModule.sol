@@ -4,6 +4,7 @@ pragma solidity ^0.8.0;
 import "../base/RegistryManager.sol";
 
 import "../interfaces/ILifecycleModule.sol";
+import "../interfaces/IStakingModule.sol";
 
 /**
     @notice Lifecycle Module performs lifecycle processes for the pool:
@@ -21,6 +22,7 @@ contract LifecycleModule is ILifecycleModule, RegistryManager {
     // 10 second buffer for phases to double check and prevent timestamp manipulations as an additional security measure
     uint256 public constant TIME_DELTA = 10;
 
+    uint256 private _epochId;
     uint256 private _epochLength;
     uint256 private _stakingPhaseLength;
     uint256 private _tradingPhaseLength;
@@ -53,6 +55,10 @@ contract LifecycleModule is ILifecycleModule, RegistryManager {
     }
 
     // External getters
+    function getEpochId() override external view returns (uint256) {
+        return _epochId;
+    }
+
     function getCurrentEpochStart() override external view returns (uint256) {
         return _currentEpochStart;
     }
@@ -116,6 +122,9 @@ contract LifecycleModule is ILifecycleModule, RegistryManager {
     function progressEpoch() override external onlyAccountingModule {
         require(canRebalance(), "LM2");
         _setCurrentEpochStart(_currentEpochStart + _epochLength);
+        _epochId++;
+        // Trigger post rebalancing function on Staking Module
+        IStakingModule(getRegistryModule().getRegistryAddresses().stakingModule).postRebalancing();
     }
 
     // Private setters
