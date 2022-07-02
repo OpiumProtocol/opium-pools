@@ -8,6 +8,7 @@ interface IStakingModule {
   event ScheduledWithdrawal(address indexed caller, address indexed receiver, address indexed owner, uint256 shares);
   event UnscheduledWithdrawal(address indexed owner, uint256 shares);
   event AssetsClaimed(address indexed owner, uint256 assets);
+  event RageQuit(address indexed caller, address indexed receiver, address indexed owner, uint256 shares);
 
   function postRebalancing() external;
 }

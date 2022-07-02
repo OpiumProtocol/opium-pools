@@ -23,6 +23,8 @@ import { Schedulers } from "../utils/Schedulers.sol";
         - S3 = zero shares on deposit
         - S4 = zero assets on redemption
         - S5 = only LifecycleModule allowed
+        - S6 = provided position is not present in an accounting module
+        - S7 = tokens[] is out of order or contains a duplicate
  */
 contract StakingModule is IStakingModule, IEIP4626, ERC165Upgradeable, ERC20PermitUpgradeable, RegistryManager {
     using SafeERC20Upgradeable for IERC20MetadataUpgradeable;
@@ -451,6 +453,55 @@ contract StakingModule is IStakingModule, IEIP4626, ERC165Upgradeable, ERC20Perm
         // Clear total scheduled deposits and withdrawals
         totalScheduledDeposits = 0;
         totalScheduledWithdrawals = 0;
+    }
+
+    function rageQuit(uint256 shares, address receiver, address owner, address[] calldata tokens) external nonReentrant {
+        // If sender is not owner of the shares, decrease allowance
+        // If allowance is less than shares, will revert with overflow
+        if (msg.sender != owner) {
+            uint256 allowed = allowance(owner, msg.sender); // Saves gas for limited approvals
+            if (allowed != type(uint256).max) {
+                _approve(owner, msg.sender, allowed - shares);
+            }
+        }
+
+        // Calculate underlying liquidity that represented shares at the beginning of the epoch
+        uint256 underlingLiquidity = previewRedeem(shares);
+        // Cache total supply before burning
+        uint256 cachedTotalSupply = totalSupply();
+
+        // Burn shares
+        _burn(owner, shares);
+
+        // Trigger Accounting Module
+        getRegistryModule().getRegistryAddresses().accountingModule.changeTotalLiquidity(underlingLiquidity, false);
+
+        address underlying = address(_getUnderlying());
+        address previousToken;
+        uint256 vaultTokenBalance;
+        uint256 transferAmount;
+        for (uint8 i = 0; i < tokens.length; i++) {
+            require(
+                (
+                    tokens[i] == underlying ||
+                    getRegistryModule().getRegistryAddresses().accountingModule.hasPosition(tokens[i])
+                ), "SM6");
+            require(
+                tokens[i] > previousToken,
+                "SM7"
+            );
+            vaultTokenBalance = IERC20MetadataUpgradeable(tokens[i]).balanceOf(address(_executor));
+            transferAmount = vaultTokenBalance * shares / cachedTotalSupply;
+
+            // Transfer tokens from vault
+            bytes memory data = abi.encodeWithSelector(bytes4(keccak256(bytes("transfer(address,uint256)"))), receiver, transferAmount);
+            _executeCall(tokens[i], data);
+
+            // Write current token as previous
+            previousToken = tokens[i];
+        }
+
+        emit RageQuit(msg.sender, receiver, owner, shares);
     }
 
     /* PRIVATE */
