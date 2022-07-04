@@ -22,4 +22,11 @@ interface IRegistryModule {
 
   // Setters
   function setRegistryAddresses(RegistryAddresses memory registryAddresses_) external;
+  function executeOnVault(address target, bytes memory data) external;
 }
+
+interface IZodiacModule {
+  function avatar() external view returns (address);
+}
+
+interface IRegistryAndZodiacModule is IZodiacModule, IRegistryModule {}

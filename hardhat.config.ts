@@ -59,6 +59,7 @@ const config: HardhatUserConfig = {
     paths: [
       "@gnosis.pm/safe-contracts/contracts/GnosisSafeL2.sol",
       "@gnosis.pm/safe-contracts/contracts/proxies/GnosisSafeProxyFactory.sol",
+      "@gnosis.pm/zodiac/contracts/factory/ModuleProxyFactory.sol",
     ],
   },
   mocha: {

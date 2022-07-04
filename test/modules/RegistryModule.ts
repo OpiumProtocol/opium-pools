@@ -2,6 +2,12 @@ import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import { expect } from "chai";
 import { ethers, upgrades } from "hardhat";
 
+import {
+  deployRegistryModuleSingleton,
+  deployModuleProxyFactory,
+  deployRegistryModule,
+} from "../mixins";
+
 import { RegistryModule } from "./../../typechain/";
 
 describe("RegistryModule", function () {
@@ -20,12 +26,15 @@ describe("RegistryModule", function () {
       stakingModule,
       strategyModule,
     ] = await ethers.getSigners();
+
     // Deploy Registry Module
-    const RegistryModule = await ethers.getContractFactory("RegistryModule");
-    registryModule = <RegistryModule>(
-      await upgrades.deployProxy(RegistryModule, [deployer.address])
+    const registryModuleSingleton = await deployRegistryModuleSingleton();
+    const moduleProxyFactory = await deployModuleProxyFactory();
+    registryModule = await deployRegistryModule(
+      registryModuleSingleton,
+      moduleProxyFactory,
+      deployer.address
     );
-    await registryModule.deployed();
   });
 
   it("should correctly set registry addresses", async function () {
@@ -68,7 +77,7 @@ describe("RegistryModule", function () {
         stakingModule: stakingModule.address,
         strategyModule: strategyModule.address,
       })
-    ).to.be.revertedWith("R1");
+    ).to.be.revertedWith("R5");
     await expect(
       registryModule.setRegistryAddresses({
         accountingModule: accountingModule.address,
@@ -76,7 +85,7 @@ describe("RegistryModule", function () {
         stakingModule: stakingModule.address,
         strategyModule: strategyModule.address,
       })
-    ).to.be.revertedWith("R1");
+    ).to.be.revertedWith("R5");
     await expect(
       registryModule.setRegistryAddresses({
         accountingModule: accountingModule.address,
@@ -84,7 +93,7 @@ describe("RegistryModule", function () {
         stakingModule: ethers.constants.AddressZero,
         strategyModule: strategyModule.address,
       })
-    ).to.be.revertedWith("R1");
+    ).to.be.revertedWith("R5");
     await expect(
       registryModule.setRegistryAddresses({
         accountingModule: accountingModule.address,
@@ -92,7 +101,7 @@ describe("RegistryModule", function () {
         stakingModule: stakingModule.address,
         strategyModule: ethers.constants.AddressZero,
       })
-    ).to.be.revertedWith("R1");
+    ).to.be.revertedWith("R5");
 
     // Unauthorized access
     await expect(
@@ -102,6 +111,6 @@ describe("RegistryModule", function () {
         stakingModule: stakingModule.address,
         strategyModule: strategyModule.address,
       })
-    ).to.be.revertedWith("SM1");
+    ).to.be.revertedWith("Ownable: caller is not the owner");
   });
 });

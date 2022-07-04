@@ -32,12 +32,12 @@ contract LifecycleModule is ILifecycleModule, RegistryManager {
     function initialize(
         uint256 currentEpochStart_,
         uint256[3] memory lengths_,
-        IRegistryModule registryModule_,
-        Executor executor_
+        IRegistryAndZodiacModule registryModule_,
+        address owner_
     )
         external initializer
     {
-        __RegistryManager_init(registryModule_, executor_);
+        __RegistryManager_init(registryModule_, owner_);
         _setCurrentEpochStart(currentEpochStart_);
         _setLengths(lengths_);
     }

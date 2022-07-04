@@ -6,6 +6,9 @@ import {
   deployGnosisSafeSingleton,
   deployGnosisSafeFactory,
   deployGnosisSafe,
+  deployRegistryModuleSingleton,
+  deployModuleProxyFactory,
+  deployRegistryModule,
   enableModule,
   setupRegistry,
   setStrategyAdvisor,
@@ -16,7 +19,6 @@ import {
   GnosisSafeL2,
   StakingModule,
   OptionsSellingStrategyModule,
-  RegistryModule,
   AccountingModule,
   LifecycleModule,
 } from "./../typechain/";
@@ -77,11 +79,13 @@ describe("E2E Test", function () {
     await mockToken.deployed();
 
     // Deploy Registry Module
-    const RegistryModule = await ethers.getContractFactory("RegistryModule");
-    const registryModule = <RegistryModule>(
-      await upgrades.deployProxy(RegistryModule, [gnosisSafe.address])
+    const registryModuleSingleton = await deployRegistryModuleSingleton();
+    const moduleProxyFactory = await deployModuleProxyFactory();
+    const registryModule = await deployRegistryModule(
+      registryModuleSingleton,
+      moduleProxyFactory,
+      gnosisSafe.address
     );
-    await registryModule.deployed();
 
     // Deploy Accounting Module
     const AccountingModule = await ethers.getContractFactory(
@@ -136,8 +140,7 @@ describe("E2E Test", function () {
     );
     await strategyModule.deployed();
 
-    await enableModule(gnosisSafe, stakingModule.address, deployer);
-    await enableModule(gnosisSafe, strategyModule.address, deployer);
+    await enableModule(gnosisSafe, registryModule.address, deployer);
 
     await setupRegistry(
       gnosisSafe,

@@ -6,6 +6,9 @@ import {
   deployGnosisSafeSingleton,
   deployGnosisSafeFactory,
   deployGnosisSafe,
+  deployRegistryModuleSingleton,
+  deployModuleProxyFactory,
+  deployRegistryModule,
   enableModule,
   setupRegistry,
   sendArbitraryTx,
@@ -110,11 +113,13 @@ describe("StakingModule", function () {
     );
 
     // Deploy Registry Module
-    const RegistryModule = await ethers.getContractFactory("RegistryModule");
-    registryModule = <RegistryModule>(
-      await upgrades.deployProxy(RegistryModule, [gnosisSafe.address])
+    const registryModuleSingleton = await deployRegistryModuleSingleton();
+    const moduleProxyFactory = await deployModuleProxyFactory();
+    registryModule = await deployRegistryModule(
+      registryModuleSingleton,
+      moduleProxyFactory,
+      gnosisSafe.address
     );
-    await registryModule.deployed();
 
     // Deploy Accounting Module
     const AccountingModule = await ethers.getContractFactory(
@@ -166,8 +171,8 @@ describe("StakingModule", function () {
       strategyModule.address,
       deployer
     );
-    await enableModule(gnosisSafe, stakingModule.address, deployer);
-    await enableModule(gnosisSafe, accountingModule.address, deployer);
+
+    await enableModule(gnosisSafe, registryModule.address, deployer);
   });
 
   after(async () => {
