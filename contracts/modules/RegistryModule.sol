@@ -6,8 +6,6 @@ import "@openzeppelin/contracts-upgradeable/utils/structs/EnumerableSetUpgradeab
 
 import "../interfaces/IRegistryModule.sol";
 
-import "hardhat/console.sol";
-
 /**
     @notice Registry Module keeps track of all the other modules connected to the pool's system
 
