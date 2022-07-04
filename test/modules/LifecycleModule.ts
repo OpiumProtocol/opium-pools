@@ -2,7 +2,14 @@ import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import { expect } from "chai";
 import { ethers, upgrades } from "hardhat";
 
-import { LifecycleModule, RegistryModule } from "../../typechain";
+import {
+  LifecycleModule,
+  RegistryModule,
+  StakingModule,
+  AccountingModule,
+  MockToken,
+  GnosisSafeL2,
+} from "../../typechain";
 
 import {
   timeTravel,
@@ -10,6 +17,14 @@ import {
   restoreSnapshot,
   getCurrentTimestamp,
 } from "../utils";
+
+import {
+  deployGnosisSafe,
+  deployGnosisSafeFactory,
+  deployGnosisSafeSingleton,
+  enableModule,
+  setupRegistry,
+} from "../mixins";
 
 const EPOCH_LENGTH = 3600 * 24 * 7; // 1 week
 const STAKING_LENGTH = 3600 * 4; // 4 hours
@@ -29,8 +44,11 @@ describe("LifecycleModule", function () {
   let lifecycleModule: LifecycleModule;
   let registryModule: RegistryModule;
   let deployer: SignerWithAddress;
-  let accountingModule: SignerWithAddress;
+  let accountingModule: AccountingModule;
   let strategyModule: SignerWithAddress;
+  let stakingModule: StakingModule;
+  let mockToken: MockToken;
+  let gnosisSafe: GnosisSafeL2;
 
   let snapshotId: any;
 
@@ -41,17 +59,56 @@ describe("LifecycleModule", function () {
   before(async () => {
     snapshotId = await takeSnapshot();
 
-    [deployer, accountingModule, strategyModule] = await ethers.getSigners();
+    [deployer, strategyModule] = await ethers.getSigners();
 
     const now = await getCurrentTimestamp();
     currentEpochStart = now + FUTURE_OFFSET;
 
+    // Deploy mocks
+    const MockToken = await ethers.getContractFactory("MockToken");
+    mockToken = await MockToken.deploy();
+    await mockToken.deployed();
+
+    // Setup GnosisSafe
+    const gnosisSafeSingleton = await deployGnosisSafeSingleton();
+    const gnosisSafeProxyFactory = await deployGnosisSafeFactory();
+    gnosisSafe = await deployGnosisSafe(
+      gnosisSafeSingleton,
+      gnosisSafeProxyFactory,
+      deployer
+    );
+
     // Deploy Registry Module
     const RegistryModule = await ethers.getContractFactory("RegistryModule");
     registryModule = <RegistryModule>(
-      await upgrades.deployProxy(RegistryModule, [deployer.address])
+      await upgrades.deployProxy(RegistryModule, [gnosisSafe.address])
     );
     await registryModule.deployed();
+
+    // Deploy Staking Module
+    const StakingModule = await ethers.getContractFactory("StakingModule");
+    stakingModule = <StakingModule>(
+      await upgrades.deployProxy(StakingModule, [
+        "LP Token",
+        "LPT",
+        registryModule.address,
+        gnosisSafe.address,
+      ])
+    );
+    await stakingModule.deployed();
+
+    // Deploy Accounting Module
+    const AccountingModule = await ethers.getContractFactory(
+      "AccountingModule"
+    );
+    accountingModule = <AccountingModule>(
+      await upgrades.deployProxy(AccountingModule, [
+        mockToken.address,
+        registryModule.address,
+        gnosisSafe.address,
+      ])
+    );
+    await accountingModule.deployed();
 
     // Deploy Lifecycle Module
     const LifecycleModule = await ethers.getContractFactory("LifecycleModule");
@@ -60,7 +117,7 @@ describe("LifecycleModule", function () {
         currentEpochStart,
         [EPOCH_LENGTH, STAKING_LENGTH, TRADING_LENGTH],
         registryModule.address,
-        deployer.address,
+        gnosisSafe.address,
       ])
     );
     await lifecycleModule.deployed();
@@ -68,12 +125,17 @@ describe("LifecycleModule", function () {
     TIME_DELTA = (await lifecycleModule.TIME_DELTA()).toNumber();
 
     // Additional setup
-    await registryModule.setRegistryAddresses({
-      accountingModule: accountingModule.address,
-      lifecycleModule: lifecycleModule.address,
-      stakingModule: deployer.address,
-      strategyModule: strategyModule.address,
-    });
+    await setupRegistry(
+      gnosisSafe,
+      registryModule,
+      accountingModule,
+      lifecycleModule,
+      stakingModule,
+      strategyModule.address,
+      deployer
+    );
+    await enableModule(gnosisSafe, stakingModule.address, deployer);
+    await enableModule(gnosisSafe, accountingModule.address, deployer);
   });
 
   after(async () => {
@@ -213,7 +275,7 @@ describe("LifecycleModule", function () {
 
   it("should correctly behave in E2:S phase", async function () {
     // Initialize epoch
-    await lifecycleModule.connect(accountingModule).progressEpoch();
+    await accountingModule.connect(strategyModule).rebalance();
 
     // Phases
     const isStakingPhase = await lifecycleModule.isStakingPhase();
@@ -250,7 +312,7 @@ describe("LifecycleModule", function () {
   it("should revert on unauthorized access and when rebalancing is not in time", async function () {
     await expect(lifecycleModule.progressEpoch()).to.be.revertedWith("LM1");
     await expect(
-      lifecycleModule.connect(accountingModule).progressEpoch()
+      accountingModule.connect(strategyModule).rebalance()
     ).to.be.revertedWith("LM2");
   });
 });

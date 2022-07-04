@@ -7,8 +7,6 @@ import "../base/RegistryManager.sol";
 
 import "../interfaces/IAccountingModule.sol";
 
-import "hardhat/console.sol";
-
 /**
     @notice Accounting Module performs accounting processes for the pool: calculates total and available liquidity, fees and tracks held positions
     Error cores:
