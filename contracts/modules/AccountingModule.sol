@@ -13,7 +13,7 @@ import "hardhat/console.sol";
     @notice Accounting Module performs accounting processes for the pool: calculates total and available liquidity, fees and tracks held positions
     Error cores:
         - AM1 = Only StakingModule allowed
-        - AM2 = Only enabled strategy allowed
+        - AM2 = Only StrategyModule allowed
         - AM3 = Wrong input
         - AM4 = Only fee collector allowed
         - AM5 = Not ready for rebalancing
@@ -65,7 +65,11 @@ contract AccountingModule is IAccountingModule, RegistryManager {
 
     modifier onlyStrategyModule() {
         require(
-            getRegistryModule().isStrategyEnabled(msg.sender),
+            (
+                msg.sender == getRegistryModule()
+                    .getRegistryAddresses()
+                    .strategyModule
+            ),
             "AM2"
         );
         _;

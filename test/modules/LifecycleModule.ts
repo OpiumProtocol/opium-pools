@@ -30,6 +30,7 @@ describe("LifecycleModule", function () {
   let registryModule: RegistryModule;
   let deployer: SignerWithAddress;
   let accountingModule: SignerWithAddress;
+  let strategyModule: SignerWithAddress;
 
   let snapshotId: any;
 
@@ -40,7 +41,7 @@ describe("LifecycleModule", function () {
   before(async () => {
     snapshotId = await takeSnapshot();
 
-    [deployer, accountingModule] = await ethers.getSigners();
+    [deployer, accountingModule, strategyModule] = await ethers.getSigners();
 
     const now = await getCurrentTimestamp();
     currentEpochStart = now + FUTURE_OFFSET;
@@ -71,6 +72,7 @@ describe("LifecycleModule", function () {
       accountingModule: accountingModule.address,
       lifecycleModule: lifecycleModule.address,
       stakingModule: deployer.address,
+      strategyModule: strategyModule.address,
     });
   });
 

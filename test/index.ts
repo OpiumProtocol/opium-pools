@@ -9,7 +9,6 @@ import {
   enableModule,
   setupRegistry,
   setStrategyAdvisor,
-  enableStrategyInRegistry,
 } from "./mixins";
 
 import {
@@ -28,6 +27,9 @@ import {
   restoreSnapshot,
   getCurrentTimestamp,
 } from "./utils";
+
+// Strategy constants
+const BASE = ethers.utils.parseEther("1");
 
 // Lifecycle Module constants
 const EPOCH_LENGTH = 3600 * 24 * 7; // 1 week
@@ -143,11 +145,6 @@ describe("E2E Test", function () {
       accountingModule,
       lifecycleModule,
       stakingModule,
-      deployer
-    );
-    await enableStrategyInRegistry(
-      gnosisSafe,
-      registryModule,
       strategyModule.address,
       deployer
     );
@@ -235,7 +232,9 @@ describe("E2E Test", function () {
     await strategyModule.connect(advisor).mintPositions(derivative);
 
     const PREMIUM = ethers.utils.parseEther("0.01");
-    const TOTAL_PREMIUM = PREMIUM.mul(availableQuantity.availableQuantity);
+    const TOTAL_PREMIUM = PREMIUM.mul(availableQuantity.availableQuantity).div(
+      BASE
+    );
     await mockToken.transfer(buyer.address, TOTAL_PREMIUM);
     await mockToken
       .connect(buyer)

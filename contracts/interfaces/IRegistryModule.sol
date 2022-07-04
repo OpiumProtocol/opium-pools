@@ -14,15 +14,12 @@ interface IRegistryModule {
     IAccountingModule accountingModule;
     ILifecycleModule lifecycleModule;
     address stakingModule;
+    address strategyModule;
   }
 
   // Getters
   function getRegistryAddresses() external view returns (RegistryAddresses memory);
-  function getEnabledStrategies() external view returns (address[] memory);
-  function isStrategyEnabled(address strategy_) external view returns (bool);
 
   // Setters
   function setRegistryAddresses(RegistryAddresses memory registryAddresses_) external;
-  function enableStrategy(address strategy_) external;
-  function disableStrategy(address strategy_) external;
 }

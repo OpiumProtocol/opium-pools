@@ -105,6 +105,7 @@ export const setupRegistry = async (
   accountingModule: AccountingModule,
   lifecycleModule: LifecycleModule,
   stakingModule: StakingModule,
+  strategyModule: string,
   owner: SignerWithAddress
 ) => {
   const setRegistryAddressesData = registryModule.interface.encodeFunctionData(
@@ -114,6 +115,7 @@ export const setupRegistry = async (
         accountingModule: accountingModule.address,
         lifecycleModule: lifecycleModule.address,
         stakingModule: stakingModule.address,
+        strategyModule,
       },
     ]
   );
@@ -150,33 +152,6 @@ export const setStrategyAdvisor = async (
     strategyModule.address,
     "0",
     setAdvisorRoleData,
-    "0",
-    "0",
-    "0",
-    "0",
-    ethers.constants.AddressZero,
-    ethers.constants.AddressZero,
-    `0x000000000000000000000000${owner.address.substring(
-      2
-    )}000000000000000000000000000000000000000000000000000000000000000001`
-  );
-};
-
-export const enableStrategyInRegistry = async (
-  gnosisSafe: GnosisSafeL2,
-  registryModule: RegistryModule,
-  strategyAddress: string,
-  owner: SignerWithAddress
-) => {
-  const enableStrategyData = registryModule.interface.encodeFunctionData(
-    "enableStrategy",
-    [strategyAddress]
-  );
-
-  await gnosisSafe.execTransaction(
-    registryModule.address,
-    "0",
-    enableStrategyData,
     "0",
     "0",
     "0",
