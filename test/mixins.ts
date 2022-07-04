@@ -1,8 +1,10 @@
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import { ethers } from "hardhat";
+import { AbiCoder } from "ethers/lib/utils";
 
 import {
-  GnosisSafe,
+  ModuleProxyFactory,
+  GnosisSafeL2,
   GnosisSafeProxyFactory,
   RegistryModule,
   AccountingModule,
@@ -13,9 +15,64 @@ import {
 
 import { decodeLogs } from "./utils/index";
 
+export const deployRegistryModuleSingleton = async () => {
+  const RegistryModule = await ethers.getContractFactory("RegistryModule");
+  const registryModule: RegistryModule = await RegistryModule.deploy();
+  await registryModule.deployed();
+  return registryModule;
+};
+
+export const deployModuleProxyFactory = async () => {
+  const ModuleProxyFactory = await ethers.getContractFactory(
+    "ModuleProxyFactory"
+  );
+  const moduleProxyFactory = <ModuleProxyFactory>(
+    await ModuleProxyFactory.deploy()
+  );
+  await moduleProxyFactory.deployed();
+  return moduleProxyFactory;
+};
+
+export const deployRegistryModule = async (
+  registryModuleSingleton: RegistryModule,
+  moduleProxyFactory: ModuleProxyFactory,
+  gnosisSafeAddress: string
+) => {
+  // Prepare initializer
+  const initializerParams = new AbiCoder().encode(
+    ["address", "address", "address"],
+    [gnosisSafeAddress, gnosisSafeAddress, gnosisSafeAddress]
+  );
+
+  const initializer = registryModuleSingleton.interface.encodeFunctionData(
+    "setUp",
+    [initializerParams]
+  );
+
+  const tx = await moduleProxyFactory.deployModule(
+    registryModuleSingleton.address,
+    initializer,
+    Date.now()
+  );
+  const receipt = await tx.wait();
+
+  const logs = decodeLogs<ModuleProxyFactory>(
+    moduleProxyFactory,
+    "ModuleProxyCreation",
+    receipt
+  );
+
+  const deployedProxyAddress =
+    "0x" + logs[0].topics[1].split("000000000000000000000000")[1];
+
+  const RegistryModule = await ethers.getContractFactory("RegistryModule");
+  const deployedProxy = RegistryModule.attach(deployedProxyAddress);
+  return deployedProxy;
+};
+
 export const deployGnosisSafeSingleton = async () => {
-  const GnosisSafe = await ethers.getContractFactory("GnosisSafe");
-  const gnosisSafeSingleton: GnosisSafe = await GnosisSafe.deploy();
+  const GnosisSafe = await ethers.getContractFactory("GnosisSafeL2");
+  const gnosisSafeSingleton: GnosisSafeL2 = await GnosisSafe.deploy();
   await gnosisSafeSingleton.deployed();
   return gnosisSafeSingleton;
 };
@@ -31,11 +88,11 @@ export const deployGnosisSafeFactory = async () => {
 };
 
 export const deployGnosisSafe = async (
-  gnosisSafeSingleton: GnosisSafe,
+  gnosisSafeSingleton: GnosisSafeL2,
   gnosisSafeProxyFactory: GnosisSafeProxyFactory,
   owner: SignerWithAddress
 ) => {
-  const GnosisSafe = await ethers.getContractFactory("GnosisSafe");
+  const GnosisSafe = await ethers.getContractFactory("GnosisSafeL2");
 
   // Prepare initializer
   const initializer = gnosisSafeSingleton.interface.encodeFunctionData(
@@ -74,7 +131,7 @@ export const deployGnosisSafe = async (
 };
 
 export const enableModule = async (
-  gnosisSafe: GnosisSafe,
+  gnosisSafe: GnosisSafeL2,
   moduleAddress: string,
   owner: SignerWithAddress
 ) => {
@@ -100,11 +157,12 @@ export const enableModule = async (
 };
 
 export const setupRegistry = async (
-  gnosisSafe: GnosisSafe,
+  gnosisSafe: GnosisSafeL2,
   registryModule: RegistryModule,
   accountingModule: AccountingModule,
   lifecycleModule: LifecycleModule,
   stakingModule: StakingModule,
+  strategyModule: string,
   owner: SignerWithAddress
 ) => {
   const setRegistryAddressesData = registryModule.interface.encodeFunctionData(
@@ -114,6 +172,7 @@ export const setupRegistry = async (
         accountingModule: accountingModule.address,
         lifecycleModule: lifecycleModule.address,
         stakingModule: stakingModule.address,
+        strategyModule,
       },
     ]
   );
@@ -135,7 +194,7 @@ export const setupRegistry = async (
 };
 
 export const setStrategyAdvisor = async (
-  gnosisSafe: GnosisSafe,
+  gnosisSafe: GnosisSafeL2,
   strategyModule: OptionsSellingStrategyModule,
   advisor: SignerWithAddress,
   owner: SignerWithAddress
@@ -162,35 +221,8 @@ export const setStrategyAdvisor = async (
   );
 };
 
-export const enableStrategyInRegistry = async (
-  gnosisSafe: GnosisSafe,
-  registryModule: RegistryModule,
-  strategyAddress: string,
-  owner: SignerWithAddress
-) => {
-  const enableStrategyData = registryModule.interface.encodeFunctionData(
-    "enableStrategy",
-    [strategyAddress]
-  );
-
-  await gnosisSafe.execTransaction(
-    registryModule.address,
-    "0",
-    enableStrategyData,
-    "0",
-    "0",
-    "0",
-    "0",
-    ethers.constants.AddressZero,
-    ethers.constants.AddressZero,
-    `0x000000000000000000000000${owner.address.substring(
-      2
-    )}000000000000000000000000000000000000000000000000000000000000000001`
-  );
-};
-
 export const sendArbitraryTx = async (
-  gnosisSafe: GnosisSafe,
+  gnosisSafe: GnosisSafeL2,
   target: string,
   data: string,
   owner: SignerWithAddress

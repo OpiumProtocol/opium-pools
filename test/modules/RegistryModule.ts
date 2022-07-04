@@ -1,17 +1,29 @@
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import { expect } from "chai";
 import { ethers } from "hardhat";
+import { AbiCoder } from "ethers/lib/utils";
+
+import {
+  deployGnosisSafeSingleton,
+  deployGnosisSafeFactory,
+  deployGnosisSafe,
+  enableModule,
+  deployRegistryModuleSingleton,
+  deployModuleProxyFactory,
+  deployRegistryModule,
+} from "../mixins";
 
 import { RegistryModule } from "./../../typechain/";
 
 describe("RegistryModule", function () {
+  let registryModuleSingleton: RegistryModule;
   let registryModule: RegistryModule;
   let deployer: SignerWithAddress;
   let accountingModule: SignerWithAddress;
   let lifecycleModule: SignerWithAddress;
   let stakingModule: SignerWithAddress;
-  let strategyOne: SignerWithAddress;
-  let strategyTwo: SignerWithAddress;
+  let strategyModule: SignerWithAddress;
+  let newOwner: SignerWithAddress;
 
   before(async () => {
     [
@@ -19,13 +31,18 @@ describe("RegistryModule", function () {
       accountingModule,
       lifecycleModule,
       stakingModule,
-      strategyOne,
-      strategyTwo,
+      strategyModule,
+      newOwner,
     ] = await ethers.getSigners();
+
     // Deploy Registry Module
-    const RegistryModule = await ethers.getContractFactory("RegistryModule");
-    registryModule = await RegistryModule.deploy(deployer.address);
-    await registryModule.deployed();
+    registryModuleSingleton = await deployRegistryModuleSingleton();
+    const moduleProxyFactory = await deployModuleProxyFactory();
+    registryModule = await deployRegistryModule(
+      registryModuleSingleton,
+      moduleProxyFactory,
+      deployer.address
+    );
   });
 
   it("should correctly set registry addresses", async function () {
@@ -44,6 +61,7 @@ describe("RegistryModule", function () {
       accountingModule: accountingModule.address,
       lifecycleModule: lifecycleModule.address,
       stakingModule: stakingModule.address,
+      strategyModule: strategyModule.address,
     });
 
     const registryAddressesAfter = await registryModule.getRegistryAddresses();
@@ -65,90 +83,105 @@ describe("RegistryModule", function () {
         accountingModule: ethers.constants.AddressZero,
         lifecycleModule: lifecycleModule.address,
         stakingModule: stakingModule.address,
+        strategyModule: strategyModule.address,
       })
-    ).to.be.revertedWith("R1");
+    ).to.be.revertedWith("R6");
     await expect(
       registryModule.setRegistryAddresses({
         accountingModule: accountingModule.address,
         lifecycleModule: ethers.constants.AddressZero,
         stakingModule: stakingModule.address,
+        strategyModule: strategyModule.address,
       })
-    ).to.be.revertedWith("R1");
+    ).to.be.revertedWith("R6");
     await expect(
       registryModule.setRegistryAddresses({
         accountingModule: accountingModule.address,
         lifecycleModule: lifecycleModule.address,
         stakingModule: ethers.constants.AddressZero,
+        strategyModule: strategyModule.address,
       })
+    ).to.be.revertedWith("R6");
+    await expect(
+      registryModule.setRegistryAddresses({
+        accountingModule: accountingModule.address,
+        lifecycleModule: lifecycleModule.address,
+        stakingModule: stakingModule.address,
+        strategyModule: ethers.constants.AddressZero,
+      })
+    ).to.be.revertedWith("R6");
+
+    const initializerParamsA = new AbiCoder().encode(
+      ["address", "address", "address"],
+      [ethers.constants.AddressZero, deployer.address, deployer.address]
+    );
+    await expect(
+      registryModuleSingleton.setUp(initializerParamsA)
     ).to.be.revertedWith("R1");
+
+    const initializerParamsB = new AbiCoder().encode(
+      ["address", "address", "address"],
+      [deployer.address, ethers.constants.AddressZero, deployer.address]
+    );
+    await expect(
+      registryModuleSingleton.setUp(initializerParamsB)
+    ).to.be.revertedWith("R2");
+
+    const initializerParamsC = new AbiCoder().encode(
+      ["address", "address", "address"],
+      [deployer.address, deployer.address, ethers.constants.AddressZero]
+    );
+    await expect(
+      registryModuleSingleton.setUp(initializerParamsC)
+    ).to.be.revertedWith("R3");
 
     // Unauthorized access
     await expect(
       registryModule.connect(accountingModule).setRegistryAddresses({
         accountingModule: accountingModule.address,
         lifecycleModule: lifecycleModule.address,
-        stakingModule: ethers.constants.AddressZero,
+        stakingModule: stakingModule.address,
+        strategyModule: strategyModule.address,
       })
-    ).to.be.revertedWith("SM1");
+    ).to.be.revertedWith("Ownable: caller is not the owner");
+
+    await expect(
+      registryModule
+        .connect(lifecycleModule)
+        .executeOnVault(lifecycleModule.address, "0x")
+    ).to.be.revertedWith("R4");
   });
 
-  it("should correctly enable / disable strategies and prevent unauthorized access", async () => {
-    // Enable strategies
-    const isStrategyOneEnabledBefore = await registryModule.isStrategyEnabled(
-      strategyOne.address
+  it("should revert wrong and settle correct transactions", async () => {
+    // Setup GnosisSafe
+    const gnosisSafeSingleton = await deployGnosisSafeSingleton();
+    const gnosisSafeProxyFactory = await deployGnosisSafeFactory();
+    const gnosisSafe = await deployGnosisSafe(
+      gnosisSafeSingleton,
+      gnosisSafeProxyFactory,
+      deployer
     );
-    expect(isStrategyOneEnabledBefore).to.be.equal(false);
 
+    await registryModule.setTarget(gnosisSafe.address);
+    await registryModule.transferOwnership(gnosisSafe.address);
+    await enableModule(gnosisSafe, registryModule.address, deployer);
+
+    // Incorrect tx
     await expect(
-      registryModule.connect(strategyOne).enableStrategy(strategyOne.address)
-    ).to.be.revertedWith("SM1");
-    await registryModule.enableStrategy(strategyOne.address);
+      registryModule
+        .connect(strategyModule)
+        .executeOnVault(registryModule.address, "0x")
+    ).to.be.revertedWith("R5");
 
-    const isStrategyOneEnabledAfter = await registryModule.isStrategyEnabled(
-      strategyOne.address
-    );
-    expect(isStrategyOneEnabledAfter).to.be.equal(true);
-
-    const isStrategyTwoEnabledBefore = await registryModule.isStrategyEnabled(
-      strategyTwo.address
-    );
-    expect(isStrategyTwoEnabledBefore).to.be.equal(false);
-
-    await registryModule.enableStrategy(strategyTwo.address);
-
-    const isStrategyTwoEnabledAfter = await registryModule.isStrategyEnabled(
-      strategyTwo.address
-    );
-    expect(isStrategyTwoEnabledAfter).to.be.equal(true);
-
-    const enabledStrategiesBefore = await registryModule.getEnabledStrategies();
-    expect(
-      enabledStrategiesBefore.map((a) => a.toLowerCase()).sort()
-    ).to.be.eql(
-      [strategyOne.address, strategyTwo.address]
-        .map((a) => a.toLowerCase())
-        .sort()
-    );
-
-    // Disable strategies
-    await expect(
-      registryModule.connect(strategyOne).disableStrategy(strategyOne.address)
-    ).to.be.revertedWith("SM1");
-    await registryModule.disableStrategy(strategyOne.address);
-
-    const isStrategyOneEnabledFinal = await registryModule.isStrategyEnabled(
-      strategyOne.address
-    );
-    expect(isStrategyOneEnabledFinal).to.be.equal(false);
-
-    await registryModule.disableStrategy(strategyTwo.address);
-
-    const isStrategyTwoEnabledFinal = await registryModule.isStrategyEnabled(
-      strategyTwo.address
-    );
-    expect(isStrategyTwoEnabledFinal).to.be.equal(false);
-
-    const enabledStrategiesAfter = await registryModule.getEnabledStrategies();
-    expect(enabledStrategiesAfter).to.be.eql([]);
+    // Correct tx
+    registryModule
+      .connect(strategyModule)
+      .executeOnVault(
+        registryModule.address,
+        registryModule.interface.encodeFunctionData("transferOwnership", [
+          newOwner.address,
+        ])
+      );
+    expect(await registryModule.owner()).to.be.equal(newOwner.address);
   });
 });

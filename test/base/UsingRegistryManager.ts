@@ -1,6 +1,6 @@
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import { expect } from "chai";
-import { ethers } from "hardhat";
+import { ethers, upgrades } from "hardhat";
 
 import { UsingRegistryManager } from "../../typechain";
 
@@ -16,9 +16,11 @@ describe("UsingRegistryManager", function () {
     const UsingRegistryManager = await ethers.getContractFactory(
       "UsingRegistryManager"
     );
-    usingRegistryManager = await UsingRegistryManager.deploy(
-      registryModule.address,
-      deployer.address
+    usingRegistryManager = <UsingRegistryManager>(
+      await upgrades.deployProxy(UsingRegistryManager, [
+        registryModule.address,
+        deployer.address,
+      ])
     );
     await usingRegistryManager.deployed();
   });
@@ -40,7 +42,7 @@ describe("UsingRegistryManager", function () {
       usingRegistryManager
         .connect(registryModule)
         .setRegistryModule(registryModule.address)
-    ).to.be.revertedWith("SM1");
+    ).to.be.revertedWith("Ownable: caller is not the owner");
     await expect(
       usingRegistryManager.setRegistryModule(ethers.constants.AddressZero)
     ).to.be.revertedWith("RM1");

@@ -1,14 +1,16 @@
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import { expect } from "chai";
-import { ethers } from "hardhat";
+import { ethers, upgrades } from "hardhat";
 
 import {
   deployGnosisSafeSingleton,
   deployGnosisSafeFactory,
   deployGnosisSafe,
+  deployRegistryModuleSingleton,
+  deployModuleProxyFactory,
+  deployRegistryModule,
   enableModule,
   setupRegistry,
-  enableStrategyInRegistry,
   sendArbitraryTx,
 } from "../mixins";
 
@@ -16,7 +18,7 @@ import {
   AccountingModule,
   RegistryModule,
   MockToken,
-  GnosisSafe,
+  GnosisSafeL2,
   LifecycleModule,
   StakingModule,
 } from "../../typechain";
@@ -33,15 +35,41 @@ const EPOCH_LENGTH = 3600 * 24 * 7; // 1 week
 const STAKING_LENGTH = 3600 * 4; // 4 hours
 const TRADING_LENGTH = 3600 * 24 * 2; // 2 days
 
+// Accounting module params
+const YEAR_SECONDS = 360 * 24 * 3600; // 1 year in seconds
+const BASE = ethers.utils.parseEther("1");
+const PROFIT_FEE = ethers.utils.parseEther("0.1");
+const ANNUAL_MAINTENANCE_FEE = ethers.utils.parseEther("0.02");
+
 // Contacts for tests
 const DEPOSIT_AMOUNT = ethers.utils.parseEther("200");
 const WITHDRAWAL_AMOUNT = ethers.utils.parseEther("100");
 const UTILIZED_AMOUNT = ethers.utils.parseEther("20");
-const UTILIZED_RATIO = ethers.utils.parseEther("0.1");
 const PREMIUM_AMOUNT = ethers.utils.parseEther("10");
-const FEE_AMOUNT = ethers.utils.parseEther("0.1");
 
-const TOTAL_DEPOSITED_AMOUNT = DEPOSIT_AMOUNT.sub(WITHDRAWAL_AMOUNT);
+const TOTAL_DEPOSITED_AMOUNT = DEPOSIT_AMOUNT.sub(WITHDRAWAL_AMOUNT); // 100
+
+const TOTAL_AVAILABLE_AMOUNT =
+  TOTAL_DEPOSITED_AMOUNT.add(PREMIUM_AMOUNT).sub(UTILIZED_AMOUNT); // 90
+
+const TOTAL_UTILIZED_AMOUNT = UTILIZED_AMOUNT.sub(PREMIUM_AMOUNT); // 10
+const TOTAL_UTILIZED_RATIO = TOTAL_UTILIZED_AMOUNT.mul(BASE).div(
+  TOTAL_DEPOSITED_AMOUNT
+); // 0.1
+
+const PROFIT_FEE_AMOUNT = PREMIUM_AMOUNT.mul(PROFIT_FEE).div(BASE); // 1
+const MAINTENANCE_FEE_AMOUNT = TOTAL_DEPOSITED_AMOUNT.mul(
+  ANNUAL_MAINTENANCE_FEE
+)
+  .mul(EPOCH_LENGTH)
+  .div(YEAR_SECONDS)
+  .div(BASE); // 0.03(8)
+
+const FINAL_LIQUIDITY_AMOUNT = TOTAL_DEPOSITED_AMOUNT.add(PREMIUM_AMOUNT)
+  .sub(PROFIT_FEE_AMOUNT)
+  .sub(MAINTENANCE_FEE_AMOUNT); // 109.86(1)
+
+const TOTAL_FEES_AMOUNT = PROFIT_FEE_AMOUNT.add(MAINTENANCE_FEE_AMOUNT); // 1.03(8)
 
 describe("AccountingModule", function () {
   let accountingModule: AccountingModule;
@@ -53,7 +81,7 @@ describe("AccountingModule", function () {
   let feeCollectorSigner: SignerWithAddress;
   let strategyModule: SignerWithAddress;
 
-  let gnosisSafe: GnosisSafe;
+  let gnosisSafe: GnosisSafeL2;
 
   let mockToken: MockToken;
   let mockPosition: MockToken;
@@ -84,18 +112,24 @@ describe("AccountingModule", function () {
     );
 
     // Deploy Registry Module
-    const RegistryModule = await ethers.getContractFactory("RegistryModule");
-    registryModule = await RegistryModule.deploy(gnosisSafe.address);
-    await registryModule.deployed();
+    const registryModuleSingleton = await deployRegistryModuleSingleton();
+    const moduleProxyFactory = await deployModuleProxyFactory();
+    registryModule = await deployRegistryModule(
+      registryModuleSingleton,
+      moduleProxyFactory,
+      gnosisSafe.address
+    );
 
     // Deploy Accounting Module
     const AccountingModule = await ethers.getContractFactory(
       "AccountingModule"
     );
-    accountingModule = await AccountingModule.deploy(
-      mockToken.address,
-      registryModule.address,
-      gnosisSafe.address
+    accountingModule = <AccountingModule>(
+      await upgrades.deployProxy(AccountingModule, [
+        mockToken.address,
+        registryModule.address,
+        gnosisSafe.address,
+      ])
     );
     await accountingModule.deployed();
 
@@ -104,21 +138,25 @@ describe("AccountingModule", function () {
     const currentEpochStart = now - STAKING_LENGTH / 2;
 
     const LifecycleModule = await ethers.getContractFactory("LifecycleModule");
-    lifecycleModule = await LifecycleModule.deploy(
-      currentEpochStart,
-      [EPOCH_LENGTH, STAKING_LENGTH, TRADING_LENGTH],
-      registryModule.address,
-      deployer.address
+    lifecycleModule = <LifecycleModule>(
+      await upgrades.deployProxy(LifecycleModule, [
+        currentEpochStart,
+        [EPOCH_LENGTH, STAKING_LENGTH, TRADING_LENGTH],
+        registryModule.address,
+        deployer.address,
+      ])
     );
     await lifecycleModule.deployed();
 
     // Deploy Staking Module
     const StakingModule = await ethers.getContractFactory("StakingModule");
-    stakingModule = await StakingModule.deploy(
-      "LP Token",
-      "LPT",
-      registryModule.address,
-      gnosisSafe.address
+    stakingModule = <StakingModule>(
+      await upgrades.deployProxy(StakingModule, [
+        "LP Token",
+        "LPT",
+        registryModule.address,
+        gnosisSafe.address,
+      ])
     );
     await stakingModule.deployed();
 
@@ -129,16 +167,11 @@ describe("AccountingModule", function () {
       accountingModule,
       lifecycleModule,
       stakingModule,
-      deployer
-    );
-    await enableStrategyInRegistry(
-      gnosisSafe,
-      registryModule,
       strategyModule.address,
       deployer
     );
-    await enableModule(gnosisSafe, stakingModule.address, deployer);
-    await enableModule(gnosisSafe, accountingModule.address, deployer);
+
+    await enableModule(gnosisSafe, registryModule.address, deployer);
   });
 
   after(async () => {
@@ -246,16 +279,14 @@ describe("AccountingModule", function () {
     expect(hasPosition).to.be.equal(true);
 
     const availableLiquidity = await accountingModule.getAvailableLiquidity();
-    expect(availableLiquidity).to.be.equal(
-      TOTAL_DEPOSITED_AMOUNT.sub(UTILIZED_AMOUNT).add(PREMIUM_AMOUNT)
-    );
+    expect(availableLiquidity).to.be.equal(TOTAL_AVAILABLE_AMOUNT);
 
     const utilizedLiquidity = await accountingModule.getUtilizedLiquidity();
-    expect(utilizedLiquidity).to.be.equal(UTILIZED_AMOUNT.sub(PREMIUM_AMOUNT));
+    expect(utilizedLiquidity).to.be.equal(TOTAL_UTILIZED_AMOUNT);
 
     const liquidityUtilizationRatio =
       await accountingModule.getLiquidityUtilizationRatio();
-    expect(liquidityUtilizationRatio).to.be.equal(UTILIZED_RATIO);
+    expect(liquidityUtilizationRatio).to.be.equal(TOTAL_UTILIZED_RATIO);
   });
 
   it("should correctly return liquidity by the strategy module", async function () {
@@ -291,24 +322,20 @@ describe("AccountingModule", function () {
     await accountingModule.connect(strategyModule).rebalance();
 
     const totalLiquidity = await accountingModule.getTotalLiquidity();
-    expect(totalLiquidity).to.be.equal(
-      TOTAL_DEPOSITED_AMOUNT.add(PREMIUM_AMOUNT).sub(FEE_AMOUNT)
-    );
+    expect(totalLiquidity).to.be.equal(FINAL_LIQUIDITY_AMOUNT);
 
     const utilizedLiquidity = await accountingModule.getUtilizedLiquidity();
     expect(utilizedLiquidity).to.be.equal(0);
 
     const availableLiquidity = await accountingModule.getAvailableLiquidity();
-    expect(availableLiquidity).to.be.equal(
-      TOTAL_DEPOSITED_AMOUNT.add(PREMIUM_AMOUNT).sub(FEE_AMOUNT)
-    );
+    expect(availableLiquidity).to.be.equal(FINAL_LIQUIDITY_AMOUNT);
 
     const liquidityUtilizationRatio =
       await accountingModule.getLiquidityUtilizationRatio();
     expect(liquidityUtilizationRatio).to.be.equal(0);
 
     const accumulatedFees = await accountingModule.getAccumulatedFees();
-    expect(accumulatedFees).to.be.equal(FEE_AMOUNT);
+    expect(accumulatedFees).to.be.equal(TOTAL_FEES_AMOUNT);
   });
 
   it("should correctly set fee collector", async () => {
@@ -331,9 +358,47 @@ describe("AccountingModule", function () {
     const feeCollectorBalance = await mockToken.balanceOf(
       feeCollectorSigner.address
     );
-    expect(feeCollectorBalance).to.be.equal(FEE_AMOUNT);
+    expect(feeCollectorBalance).to.be.equal(TOTAL_FEES_AMOUNT);
 
     const accumulatedFees = await accountingModule.getAccumulatedFees();
     expect(accumulatedFees).to.be.equal("0");
+  });
+
+  it("should correctly change fees by executor and revert unauthorized access", async () => {
+    const newImmediateFee = ethers.utils.parseEther("1");
+    const newAnnualFee = ethers.utils.parseEther("2");
+    await expect(
+      accountingModule
+        .connect(feeCollectorSigner)
+        .setImmediateProfitFee(newImmediateFee)
+    ).to.be.revertedWith("Ownable: caller is not the owner");
+    await expect(
+      accountingModule
+        .connect(feeCollectorSigner)
+        .setAnnualMaintenanceFee(newAnnualFee)
+    ).to.be.revertedWith("Ownable: caller is not the owner");
+
+    await sendArbitraryTx(
+      gnosisSafe,
+      accountingModule.address,
+      accountingModule.interface.encodeFunctionData("setImmediateProfitFee", [
+        newImmediateFee,
+      ]),
+      deployer
+    );
+    await sendArbitraryTx(
+      gnosisSafe,
+      accountingModule.address,
+      accountingModule.interface.encodeFunctionData("setAnnualMaintenanceFee", [
+        newAnnualFee,
+      ]),
+      deployer
+    );
+
+    const immediateFeeAfter = await accountingModule.getImmediateProfitFee();
+    const annualFeeAfter = await accountingModule.getAnnualMaintenanceFee();
+
+    expect(immediateFeeAfter).to.be.eq(newImmediateFee);
+    expect(annualFeeAfter).to.be.eq(annualFeeAfter);
   });
 });

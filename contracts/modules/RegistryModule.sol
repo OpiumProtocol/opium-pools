@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: agpl-3.0
 pragma solidity ^0.8.0;
 
-import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
-
-import "../base/SafeModule.sol";
+import "@gnosis.pm/zodiac/contracts/core/Module.sol";
+import "@openzeppelin/contracts-upgradeable/utils/structs/EnumerableSetUpgradeable.sol";
 
 import "../interfaces/IRegistryModule.sol";
 
@@ -11,43 +10,60 @@ import "../interfaces/IRegistryModule.sol";
     @notice Registry Module keeps track of all the other modules connected to the pool's system
 
     Error codes:
-        - R1 = Incorrect input
+        - R1 = Owner can not be zero address
+        - R2 = Avatar can not be zero address
+        - R3 = Target can not be zero address
+        - R4 = Unauthorized attempt on Vault transactions execution
+        - R5 = Vault transaction execution failed
+        - R6 = Incorrect input
  */
-contract RegistryModule is IRegistryModule, SafeModule {
-    using EnumerableSet for EnumerableSet.AddressSet;
+contract RegistryModule is IRegistryModule, Module {
+    using EnumerableSetUpgradeable for EnumerableSetUpgradeable.AddressSet;
 
     RegistryAddresses private _registryAddresses;
 
-    EnumerableSet.AddressSet private _strategies;
+    function setUp(bytes memory initParams) public override initializer {
+        (
+            address _owner,
+            address _avatar,
+            address _target
+        ) = abi.decode(
+            initParams,
+            (address, address, address)
+        );
+        __Ownable_init();
+        require(_owner != address(0), "R1");
+        require(_avatar != address(0), "R2");
+        require(_target != address(0), "R3");
+        avatar = _avatar;
+        target = _target;
 
-    constructor(Executor executor_) SafeModule(executor_) {}
+        transferOwnership(_owner);
+    }
 
     // External getters
     function getRegistryAddresses() override external view returns (RegistryAddresses memory) {
         return _registryAddresses;
     }
 
-    function getEnabledStrategies() override external view returns (address[] memory) {
-        return _strategies.values();
-    }
-
-    function isStrategyEnabled(address strategy_) override external view returns (bool) {
-        return _strategies.contains(strategy_);
-    }
-
     // External setters
-    function setRegistryAddresses(RegistryAddresses memory registryAddresses_) override external onlyExecutor {
+    function setRegistryAddresses(RegistryAddresses memory registryAddresses_) override external onlyOwner {
         _setRegistryAddresses(registryAddresses_);
     }
 
-    function enableStrategy(address strategy_) override external onlyExecutor {
-        _strategies.add(strategy_);
-        emit StrategyEnabled(strategy_);
-    }
-
-    function disableStrategy(address strategy_) override external onlyExecutor {
-        _strategies.remove(strategy_);
-        emit StrategyDisabled(strategy_);
+    function executeOnVault(
+        address target,
+        bytes memory data
+    ) override external {
+        // Check if msg.sender is authorized to execute transactions on Vault
+        require(
+            msg.sender == _registryAddresses.stakingModule ||
+            msg.sender == address(_registryAddresses.accountingModule) ||
+            msg.sender == _registryAddresses.strategyModule,
+            "R4"
+        );
+        bool success = exec(target, 0, data, Enum.Operation.Call);
+        require(success, "R5");
     }
 
     // Private setters
@@ -56,9 +72,10 @@ contract RegistryModule is IRegistryModule, SafeModule {
             (
                 address(registryAddresses_.accountingModule) != address(0) &&
                 address(registryAddresses_.lifecycleModule) != address(0) &&
-                registryAddresses_.stakingModule != address(0)
+                registryAddresses_.stakingModule != address(0) &&
+                registryAddresses_.strategyModule != address(0)
             ),
-            "R1"
+            "R6"
         );
         _registryAddresses = registryAddresses_;
         emit RegistryAddressesSet(_registryAddresses);

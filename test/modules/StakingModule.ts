@@ -1,14 +1,16 @@
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import { expect } from "chai";
-import { ethers } from "hardhat";
+import { ethers, upgrades } from "hardhat";
 
 import {
   deployGnosisSafeSingleton,
   deployGnosisSafeFactory,
   deployGnosisSafe,
+  deployRegistryModuleSingleton,
+  deployModuleProxyFactory,
+  deployRegistryModule,
   enableModule,
   setupRegistry,
-  enableStrategyInRegistry,
   sendArbitraryTx,
 } from "../mixins";
 
@@ -16,7 +18,7 @@ import {
   AccountingModule,
   RegistryModule,
   MockToken,
-  GnosisSafe,
+  GnosisSafeL2,
   LifecycleModule,
   StakingModule,
 } from "../../typechain";
@@ -33,25 +35,39 @@ const EPOCH_LENGTH = 3600 * 24 * 7; // 1 week
 const STAKING_LENGTH = 3600 * 4; // 4 hours
 const TRADING_LENGTH = 3600 * 24 * 2; // 2 days
 
+// Accounting module params
+const YEAR_SECONDS = 360 * 24 * 3600; // 1 year in seconds
+const BASE = ethers.utils.parseEther("1");
+const PROFIT_FEE = ethers.utils.parseEther("0.1");
+const ANNUAL_MAINTENANCE_FEE = ethers.utils.parseEther("0.02");
+
 // Contacts for tests
 const DEPOSIT_AMOUNT = ethers.utils.parseEther("200");
 const WITHDRAWAL_AMOUNT = ethers.utils.parseEther("100");
 const UTILIZED_AMOUNT = ethers.utils.parseEther("20");
 const PREMIUM_AMOUNT = ethers.utils.parseEther("20");
-const FEE_AMOUNT = ethers.utils.parseEther("0.2");
 
 const SMALL_DEPOSIT_AMOUNT = DEPOSIT_AMOUNT.div(2);
 const SMALL_WITHDRAWAL_AMOUNT = WITHDRAWAL_AMOUNT.div(2);
 const TOTAL_DEPOSITED_AMOUNT = DEPOSIT_AMOUNT.sub(WITHDRAWAL_AMOUNT);
+const FINAL_DEPOSITED_AMOUNT = TOTAL_DEPOSITED_AMOUNT.add(SMALL_DEPOSIT_AMOUNT);
 
-const TOTAL_LIQUIDITY_IN_NEXT_EPOCH = DEPOSIT_AMOUNT.sub(WITHDRAWAL_AMOUNT)
-  .add(SMALL_DEPOSIT_AMOUNT)
-  .add(PREMIUM_AMOUNT)
-  .sub(FEE_AMOUNT);
+const PROFIT_FEE_AMOUNT = PREMIUM_AMOUNT.mul(PROFIT_FEE).div(BASE);
+const MAINTENANCE_FEE_AMOUNT = FINAL_DEPOSITED_AMOUNT.mul(
+  ANNUAL_MAINTENANCE_FEE
+)
+  .mul(EPOCH_LENGTH)
+  .div(YEAR_SECONDS)
+  .div(BASE);
+
+const FINAL_LIQUIDITY_AMOUNT = FINAL_DEPOSITED_AMOUNT.add(PREMIUM_AMOUNT)
+  .sub(PROFIT_FEE_AMOUNT)
+  .sub(MAINTENANCE_FEE_AMOUNT);
+
 const FINAL_SHARES_RATE = DEPOSIT_AMOUNT.mul(DEPOSIT_AMOUNT).div(
-  TOTAL_LIQUIDITY_IN_NEXT_EPOCH
+  FINAL_LIQUIDITY_AMOUNT
 );
-const FINAL_AMOUNT_RATE = DEPOSIT_AMOUNT.mul(TOTAL_LIQUIDITY_IN_NEXT_EPOCH).div(
+const FINAL_AMOUNT_RATE = DEPOSIT_AMOUNT.mul(FINAL_LIQUIDITY_AMOUNT).div(
   DEPOSIT_AMOUNT
 );
 
@@ -64,7 +80,7 @@ describe("StakingModule", function () {
   let deployer: SignerWithAddress;
   let strategyModule: SignerWithAddress;
 
-  let gnosisSafe: GnosisSafe;
+  let gnosisSafe: GnosisSafeL2;
 
   let mockToken: MockToken;
   let mockPosition: MockToken;
@@ -97,18 +113,24 @@ describe("StakingModule", function () {
     );
 
     // Deploy Registry Module
-    const RegistryModule = await ethers.getContractFactory("RegistryModule");
-    registryModule = await RegistryModule.deploy(gnosisSafe.address);
-    await registryModule.deployed();
+    const registryModuleSingleton = await deployRegistryModuleSingleton();
+    const moduleProxyFactory = await deployModuleProxyFactory();
+    registryModule = await deployRegistryModule(
+      registryModuleSingleton,
+      moduleProxyFactory,
+      gnosisSafe.address
+    );
 
     // Deploy Accounting Module
     const AccountingModule = await ethers.getContractFactory(
       "AccountingModule"
     );
-    accountingModule = await AccountingModule.deploy(
-      mockToken.address,
-      registryModule.address,
-      gnosisSafe.address
+    accountingModule = <AccountingModule>(
+      await upgrades.deployProxy(AccountingModule, [
+        mockToken.address,
+        registryModule.address,
+        gnosisSafe.address,
+      ])
     );
     await accountingModule.deployed();
 
@@ -117,21 +139,25 @@ describe("StakingModule", function () {
     currentEpochStart = now - STAKING_LENGTH / 2;
 
     const LifecycleModule = await ethers.getContractFactory("LifecycleModule");
-    lifecycleModule = await LifecycleModule.deploy(
-      currentEpochStart,
-      [EPOCH_LENGTH, STAKING_LENGTH, TRADING_LENGTH],
-      registryModule.address,
-      deployer.address
+    lifecycleModule = <LifecycleModule>(
+      await upgrades.deployProxy(LifecycleModule, [
+        currentEpochStart,
+        [EPOCH_LENGTH, STAKING_LENGTH, TRADING_LENGTH],
+        registryModule.address,
+        deployer.address,
+      ])
     );
     await lifecycleModule.deployed();
 
     // Deploy Staking Module
     const StakingModule = await ethers.getContractFactory("StakingModule");
-    stakingModule = await StakingModule.deploy(
-      "LP Token",
-      "LPT",
-      registryModule.address,
-      gnosisSafe.address
+    stakingModule = <StakingModule>(
+      await upgrades.deployProxy(StakingModule, [
+        "LP Token",
+        "LPT",
+        registryModule.address,
+        gnosisSafe.address,
+      ])
     );
     await stakingModule.deployed();
 
@@ -142,16 +168,11 @@ describe("StakingModule", function () {
       accountingModule,
       lifecycleModule,
       stakingModule,
-      deployer
-    );
-    await enableStrategyInRegistry(
-      gnosisSafe,
-      registryModule,
       strategyModule.address,
       deployer
     );
-    await enableModule(gnosisSafe, stakingModule.address, deployer);
-    await enableModule(gnosisSafe, accountingModule.address, deployer);
+
+    await enableModule(gnosisSafe, registryModule.address, deployer);
   });
 
   after(async () => {
