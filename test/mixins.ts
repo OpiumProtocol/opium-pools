@@ -1,7 +1,9 @@
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import { ethers } from "hardhat";
+import { AbiCoder } from "ethers/lib/utils";
 
 import {
+  ModuleProxyFactory,
   GnosisSafeL2,
   GnosisSafeProxyFactory,
   RegistryModule,
@@ -12,6 +14,61 @@ import {
 } from "./../typechain/";
 
 import { decodeLogs } from "./utils/index";
+
+export const deployRegistryModuleSingleton = async () => {
+  const RegistryModule = await ethers.getContractFactory("RegistryModule");
+  const registryModule: RegistryModule = await RegistryModule.deploy();
+  await registryModule.deployed();
+  return registryModule;
+};
+
+export const deployModuleProxyFactory = async () => {
+  const ModuleProxyFactory = await ethers.getContractFactory(
+    "ModuleProxyFactory"
+  );
+  const moduleProxyFactory = <ModuleProxyFactory>(
+    await ModuleProxyFactory.deploy()
+  );
+  await moduleProxyFactory.deployed();
+  return moduleProxyFactory;
+};
+
+export const deployRegistryModule = async (
+  registryModuleSingleton: RegistryModule,
+  moduleProxyFactory: ModuleProxyFactory,
+  gnosisSafeAddress: string
+) => {
+  // Prepare initializer
+  const initializerParams = new AbiCoder().encode(
+    ["address", "address", "address"],
+    [gnosisSafeAddress, gnosisSafeAddress, gnosisSafeAddress]
+  );
+
+  const initializer = registryModuleSingleton.interface.encodeFunctionData(
+    "setUp",
+    [initializerParams]
+  );
+
+  const tx = await moduleProxyFactory.deployModule(
+    registryModuleSingleton.address,
+    initializer,
+    Date.now()
+  );
+  const receipt = await tx.wait();
+
+  const logs = decodeLogs<ModuleProxyFactory>(
+    moduleProxyFactory,
+    "ModuleProxyCreation",
+    receipt
+  );
+
+  const deployedProxyAddress =
+    "0x" + logs[0].topics[1].split("000000000000000000000000")[1];
+
+  const RegistryModule = await ethers.getContractFactory("RegistryModule");
+  const deployedProxy = RegistryModule.attach(deployedProxyAddress);
+  return deployedProxy;
+};
 
 export const deployGnosisSafeSingleton = async () => {
   const GnosisSafe = await ethers.getContractFactory("GnosisSafeL2");

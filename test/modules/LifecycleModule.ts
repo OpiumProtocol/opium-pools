@@ -22,6 +22,9 @@ import {
   deployGnosisSafe,
   deployGnosisSafeFactory,
   deployGnosisSafeSingleton,
+  deployRegistryModuleSingleton,
+  deployModuleProxyFactory,
+  deployRegistryModule,
   enableModule,
   setupRegistry,
 } from "../mixins";
@@ -79,11 +82,13 @@ describe("LifecycleModule", function () {
     );
 
     // Deploy Registry Module
-    const RegistryModule = await ethers.getContractFactory("RegistryModule");
-    registryModule = <RegistryModule>(
-      await upgrades.deployProxy(RegistryModule, [gnosisSafe.address])
+    const registryModuleSingleton = await deployRegistryModuleSingleton();
+    const moduleProxyFactory = await deployModuleProxyFactory();
+    registryModule = await deployRegistryModule(
+      registryModuleSingleton,
+      moduleProxyFactory,
+      gnosisSafe.address
     );
-    await registryModule.deployed();
 
     // Deploy Staking Module
     const StakingModule = await ethers.getContractFactory("StakingModule");
@@ -134,8 +139,8 @@ describe("LifecycleModule", function () {
       strategyModule.address,
       deployer
     );
-    await enableModule(gnosisSafe, stakingModule.address, deployer);
-    await enableModule(gnosisSafe, accountingModule.address, deployer);
+
+    await enableModule(gnosisSafe, registryModule.address, deployer);
   });
 
   after(async () => {

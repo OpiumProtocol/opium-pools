@@ -11,7 +11,6 @@ import "../../external/opium/LibOpiumCalculator.sol";
 import "../../external/opium/IOpiumOnChainPositionsLens.sol";
 
 import "../../base/RegistryManager.sol";
-import "../../base/SafeModule.sol";
 
 import "../../interfaces/IStrategyModule.sol";
 
@@ -31,14 +30,14 @@ contract OptionsSellingStrategyModule is IStrategyModule, RegistryManager, Acces
   function initialize(
     IOpiumRegistry opiumRegistry_,
     IOpiumOnChainPositionsLens opiumLens_,
-    IRegistryModule registryModule_,
-    Executor executor_
+    IRegistryAndZodiacModule registryModule_,
+    address owner_
   )
     external initializer
   {
-    __RegistryManager_init(registryModule_, executor_);
+    __RegistryManager_init(registryModule_, owner_);
 
-    _setupRole(DEFAULT_ADMIN_ROLE, address(executor_));
+    _setupRole(DEFAULT_ADMIN_ROLE, address(owner_));
 
     _setOptionRegistry(opiumRegistry_);
     _setOpiumLens(opiumLens_);
@@ -92,15 +91,15 @@ contract OptionsSellingStrategyModule is IStrategyModule, RegistryManager, Acces
       _opiumRegistry.getProtocolAddresses().tokenSpender,
       requiredMargin
     );
-    _executeCall(derivative_.token, data);
+    getRegistryModule().executeOnVault(derivative_.token, data);
 
     data = abi.encodeWithSelector(
       bytes4(keccak256(bytes("createAndMint((uint256,uint256,uint256[],address,address,address),uint256,address[2])"))),
       derivative_,
       availableQuantity,
-      [address(_executor),address(_executor)]
+      [getRegistryModule().avatar(),getRegistryModule().avatar()]
     );
-    _executeCall(_opiumRegistry.getProtocolAddresses().core, data);
+    getRegistryModule().executeOnVault(_opiumRegistry.getProtocolAddresses().core, data);
 
     (address longPositionAddress, address shortPositionAddress) = _opiumLens.predictPositionsAddressesByDerivative(derivative_);
 
@@ -124,16 +123,16 @@ contract OptionsSellingStrategyModule is IStrategyModule, RegistryManager, Acces
     );
 
     // Transfer premium in
-    accountingModule.getUnderlying().safeTransferFrom(msg.sender, address(_executor), quantity_ * _premiums[position_] / BASE);
+    accountingModule.getUnderlying().safeTransferFrom(msg.sender, getRegistryModule().avatar(), quantity_ * _premiums[position_] / BASE);
     // Transfer positions out
     bytes memory data = abi.encodeWithSelector(bytes4(keccak256(bytes("transfer(address,uint256)"))), msg.sender, quantity_);
-    _executeCall(position_, data);
+    getRegistryModule().executeOnVault(position_, data);
   }
 
   function executePositions(IOpiumCore.Derivative memory derivative_) external canRebalance {
     (address longPositionAddress, address shortPositionAddress) = _opiumLens.predictPositionsAddressesByDerivative(derivative_);
-    uint256 longPositionBalance = IERC20MetadataUpgradeable(longPositionAddress).balanceOf(address(_executor));
-    uint256 shortPositionBalance = IERC20MetadataUpgradeable(shortPositionAddress).balanceOf(address(_executor));
+    uint256 longPositionBalance = IERC20MetadataUpgradeable(longPositionAddress).balanceOf(getRegistryModule().avatar());
+    uint256 shortPositionBalance = IERC20MetadataUpgradeable(shortPositionAddress).balanceOf(getRegistryModule().avatar());
 
     // Check if positions redemption is possible
     if (longPositionBalance != 0 && shortPositionBalance != 0) {
@@ -142,7 +141,7 @@ contract OptionsSellingStrategyModule is IStrategyModule, RegistryManager, Acces
 
       // Redeem positions
       bytes memory data = abi.encodeWithSelector(bytes4(keccak256(bytes("redeem(address[],uint256)"))), [longPositionAddress,shortPositionAddress], redeemPositions);
-      _executeCall(_opiumRegistry.getProtocolAddresses().core, data);
+      getRegistryModule().executeOnVault(_opiumRegistry.getProtocolAddresses().core, data);
 
       longPositionBalance -= redeemPositions;
       shortPositionBalance -= redeemPositions;
@@ -150,12 +149,12 @@ contract OptionsSellingStrategyModule is IStrategyModule, RegistryManager, Acces
 
     if (longPositionBalance > 0) {
       bytes memory data = abi.encodeWithSelector(bytes4(keccak256(bytes("execute(address,uint256)"))), longPositionAddress, longPositionBalance);
-      _executeCall(_opiumRegistry.getProtocolAddresses().core, data);
+      getRegistryModule().executeOnVault(_opiumRegistry.getProtocolAddresses().core, data);
     }
 
     if (shortPositionBalance > 0) {
       bytes memory data = abi.encodeWithSelector(bytes4(keccak256(bytes("execute(address,uint256)"))), shortPositionAddress, shortPositionBalance);
-      _executeCall(_opiumRegistry.getProtocolAddresses().core, data);
+      getRegistryModule().executeOnVault(_opiumRegistry.getProtocolAddresses().core, data);
     }
 
     IAccountingModule accountingModule = getRegistryModule().getRegistryAddresses().accountingModule;

@@ -42,7 +42,7 @@ describe("UsingRegistryManager", function () {
       usingRegistryManager
         .connect(registryModule)
         .setRegistryModule(registryModule.address)
-    ).to.be.revertedWith("SM1");
+    ).to.be.revertedWith("Ownable: caller is not the owner");
     await expect(
       usingRegistryManager.setRegistryModule(ethers.constants.AddressZero)
     ).to.be.revertedWith("RM1");

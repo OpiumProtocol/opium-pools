@@ -38,12 +38,12 @@ contract AccountingModule is IAccountingModule, RegistryManager {
 
     function initialize(
         IERC20MetadataUpgradeable underlying_,
-        IRegistryModule registryModule_,
-        Executor executor_
+        IRegistryAndZodiacModule registryModule_,
+        address owner_
     )
         external initializer
     {
-        __RegistryManager_init(registryModule_, executor_);
+        __RegistryManager_init(registryModule_, owner_);
         _setUnderlying(underlying_);
         _setImmediateProfitFee(0.1e18);
         _setAnnualMaintenanceFee(0.02e18);
@@ -78,11 +78,11 @@ contract AccountingModule is IAccountingModule, RegistryManager {
         _;
     }
 
-    modifier onlyFeeCollectorOrExecutor() {
+    modifier onlyFeeCollectorOrOwner() {
         require(
             (
                 msg.sender == _feeCollector ||
-                msg.sender == address(_executor)
+                msg.sender == owner()
             ),
             "AM6"
         );
@@ -109,7 +109,7 @@ contract AccountingModule is IAccountingModule, RegistryManager {
     }
 
     function getAvailableLiquidity() override public view returns (uint256) {
-        uint256 poolBalance = _underlying.balanceOf(address(_executor));
+        uint256 poolBalance = _underlying.balanceOf(getRegistryModule().avatar());
         if (poolBalance < _accumulatedFees) {
             return 0;
         }
@@ -166,7 +166,7 @@ contract AccountingModule is IAccountingModule, RegistryManager {
         require(_holdingPositions.length() == 0, "AM5");
 
         uint256 previousBalance = _totalLiquidity + _accumulatedFees;
-        uint256 currentBalance = _underlying.balanceOf(address(_executor));
+        uint256 currentBalance = _underlying.balanceOf(getRegistryModule().avatar());
 
         // Made profit
         if (currentBalance > previousBalance) {
@@ -197,18 +197,18 @@ contract AccountingModule is IAccountingModule, RegistryManager {
         _setAccumulatedFees(0);
         // Transfer fees out
         bytes memory data = abi.encodeWithSelector(bytes4(keccak256(bytes("transfer(address,uint256)"))), msg.sender, accumulatedFees);
-        _executeCall(address(_underlying), data);
+        getRegistryModule().executeOnVault(address(_underlying), data);
     }
 
-    function setFeeCollector(address feeCollector_) override external onlyFeeCollectorOrExecutor {
+    function setFeeCollector(address feeCollector_) override external onlyFeeCollectorOrOwner {
         _setFeeCollector(feeCollector_);
     }
 
-    function setImmediateProfitFee(uint256 immediateProfitFee_) override external onlyExecutor {
+    function setImmediateProfitFee(uint256 immediateProfitFee_) override external onlyOwner {
         _setImmediateProfitFee(immediateProfitFee_);
     }
 
-    function setAnnualMaintenanceFee(uint256 annualMaintenanceFee_) override external onlyExecutor {
+    function setAnnualMaintenanceFee(uint256 annualMaintenanceFee_) override external onlyOwner {
         _setAnnualMaintenanceFee(annualMaintenanceFee_);
     }
 

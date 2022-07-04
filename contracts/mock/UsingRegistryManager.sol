@@ -8,9 +8,9 @@ import "../base/RegistryManager.sol";
  */
 contract UsingRegistryManager is RegistryManager {
     function initialize(
-        IRegistryModule registryModule_,
-        Executor executor_
+        IRegistryAndZodiacModule registryModule_,
+        address owner_
     ) external initializer {
-        __RegistryManager_init(registryModule_, executor_);
+        __RegistryManager_init(registryModule_, owner_);
     }
 }

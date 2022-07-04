@@ -44,14 +44,14 @@ contract StakingModule is IStakingModule, IEIP4626, ERC165Upgradeable, ERC20Perm
     function initialize(
         string memory name_,
         string memory symbol_,
-        IRegistryModule registryModule_,
-        Executor executor_
+        IRegistryAndZodiacModule registryModule_,
+        address owner_
     )
         external initializer
     {
         __ERC20Permit_init(name_);
         __ERC20_init(name_, symbol_);
-        __RegistryManager_init(registryModule_, executor_);
+        __RegistryManager_init(registryModule_, owner_);
     }
 
     /* MODIFIERS */
@@ -173,7 +173,7 @@ contract StakingModule is IStakingModule, IEIP4626, ERC165Upgradeable, ERC20Perm
         // Check for rounding error since we round down in previewDeposit
         require((shares = previewDeposit(assets)) != 0, "S3");
         // Transfer tokens in
-        _getUnderlying().safeTransferFrom(msg.sender, address(_executor), assets);
+        _getUnderlying().safeTransferFrom(msg.sender, getRegistryModule().avatar(), assets);
         // Trigger Accounting Module
         getRegistryModule().getRegistryAddresses().accountingModule.changeTotalLiquidity(assets, true);
         // Mint shares
@@ -191,7 +191,7 @@ contract StakingModule is IStakingModule, IEIP4626, ERC165Upgradeable, ERC20Perm
         // No need to check for rounding error, previewMint rounds up
         assets = previewMint(shares);
         // Transfer tokens in
-        _getUnderlying().safeTransferFrom(msg.sender, address(_executor), assets);
+        _getUnderlying().safeTransferFrom(msg.sender, getRegistryModule().avatar(), assets);
         // Trigger Accounting Module
         getRegistryModule().getRegistryAddresses().accountingModule.changeTotalLiquidity(assets, true);
         // Mint shares
@@ -225,7 +225,7 @@ contract StakingModule is IStakingModule, IEIP4626, ERC165Upgradeable, ERC20Perm
 
         // Transfer tokens out
         bytes memory data = abi.encodeWithSelector(bytes4(keccak256(bytes("transfer(address,uint256)"))), receiver, assets);
-        _executeCall(address(_getUnderlying()), data);
+        getRegistryModule().executeOnVault(address(_getUnderlying()), data);
     }
     
     function redeem(uint256 shares, address receiver, address owner) override public onlyIfCanWithdraw nonReentrant returns (uint256 assets) {
@@ -248,7 +248,7 @@ contract StakingModule is IStakingModule, IEIP4626, ERC165Upgradeable, ERC20Perm
 
         // Transfer tokens out
         bytes memory data = abi.encodeWithSelector(bytes4(keccak256(bytes("transfer(address,uint256)"))), receiver, assets);
-        _executeCall(address(_getUnderlying()), data);
+        getRegistryModule().executeOnVault(address(_getUnderlying()), data);
     }
 
     function scheduleDeposit(uint256 assets, address receiver) override public nonReentrant returns (uint256 shares) {
@@ -462,12 +462,12 @@ contract StakingModule is IStakingModule, IEIP4626, ERC165Upgradeable, ERC20Perm
                 tokens[i] > previousToken,
                 "SM7"
             );
-            vaultTokenBalance = IERC20MetadataUpgradeable(tokens[i]).balanceOf(address(_executor));
+            vaultTokenBalance = IERC20MetadataUpgradeable(tokens[i]).balanceOf(getRegistryModule().avatar());
             transferAmount = vaultTokenBalance * shares / cachedTotalSupply;
 
             // Transfer tokens from vault
             bytes memory data = abi.encodeWithSelector(bytes4(keccak256(bytes("transfer(address,uint256)"))), receiver, transferAmount);
-            _executeCall(tokens[i], data);
+            getRegistryModule().executeOnVault(tokens[i], data);
 
             // Write current token as previous
             previousToken = tokens[i];
@@ -503,13 +503,13 @@ contract StakingModule is IStakingModule, IEIP4626, ERC165Upgradeable, ERC20Perm
 
         if (totalScheduledDeposits > assetsToWithdraw) {
             // Transfer tokens to vault
-            _getUnderlying().safeTransfer(address(_executor), totalScheduledDeposits - assetsToWithdraw);
+            _getUnderlying().safeTransfer(getRegistryModule().avatar(), totalScheduledDeposits - assetsToWithdraw);
             // Trigger Accounting Module
             getRegistryModule().getRegistryAddresses().accountingModule.changeTotalLiquidity(totalScheduledDeposits - assetsToWithdraw, true);
         } else {
             // Transfer tokens from vault
             bytes memory data = abi.encodeWithSelector(bytes4(keccak256(bytes("transfer(address,uint256)"))), address(this), assetsToWithdraw - totalScheduledDeposits);
-            _executeCall(address(_getUnderlying()), data);
+            getRegistryModule().executeOnVault(address(_getUnderlying()), data);
             // Trigger Accounting Module
             getRegistryModule().getRegistryAddresses().accountingModule.changeTotalLiquidity(assetsToWithdraw - totalScheduledDeposits, false);
         }

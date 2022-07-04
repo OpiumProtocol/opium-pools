@@ -6,6 +6,9 @@ import {
   deployGnosisSafeSingleton,
   deployGnosisSafeFactory,
   deployGnosisSafe,
+  deployRegistryModuleSingleton,
+  deployModuleProxyFactory,
+  deployRegistryModule,
   enableModule,
   setupRegistry,
   sendArbitraryTx,
@@ -109,11 +112,13 @@ describe("AccountingModule", function () {
     );
 
     // Deploy Registry Module
-    const RegistryModule = await ethers.getContractFactory("RegistryModule");
-    registryModule = <RegistryModule>(
-      await upgrades.deployProxy(RegistryModule, [gnosisSafe.address])
+    const registryModuleSingleton = await deployRegistryModuleSingleton();
+    const moduleProxyFactory = await deployModuleProxyFactory();
+    registryModule = await deployRegistryModule(
+      registryModuleSingleton,
+      moduleProxyFactory,
+      gnosisSafe.address
     );
-    await registryModule.deployed();
 
     // Deploy Accounting Module
     const AccountingModule = await ethers.getContractFactory(
@@ -165,8 +170,8 @@ describe("AccountingModule", function () {
       strategyModule.address,
       deployer
     );
-    await enableModule(gnosisSafe, stakingModule.address, deployer);
-    await enableModule(gnosisSafe, accountingModule.address, deployer);
+
+    await enableModule(gnosisSafe, registryModule.address, deployer);
   });
 
   after(async () => {
@@ -366,12 +371,12 @@ describe("AccountingModule", function () {
       accountingModule
         .connect(feeCollectorSigner)
         .setImmediateProfitFee(newImmediateFee)
-    ).to.be.revertedWith("SM1");
+    ).to.be.revertedWith("Ownable: caller is not the owner");
     await expect(
       accountingModule
         .connect(feeCollectorSigner)
         .setAnnualMaintenanceFee(newAnnualFee)
-    ).to.be.revertedWith("SM1");
+    ).to.be.revertedWith("Ownable: caller is not the owner");
 
     await sendArbitraryTx(
       gnosisSafe,
