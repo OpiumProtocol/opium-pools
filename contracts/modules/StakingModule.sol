@@ -72,30 +72,18 @@ contract StakingModule is IStakingModule, IEIP4626, ERC165Upgradeable, ERC20Perm
         _;
     }
 
-    modifier onlyLifecycleModule() {
-        require(
-            msg.sender == address(
-                getRegistryModule()
-                    .getRegistryAddresses()
-                    .lifecycleModule
-            ),
-            "S5"
-        );
-        _;
-    }
-
     /* PUBLIC */
 
     /* PUBLIC -> GETTERS */
 
-    function canDeposit() public view returns (bool) {
+    function canDeposit() override public view returns (bool) {
         return getRegistryModule()
             .getRegistryAddresses()
             .lifecycleModule
             .canDeposit();
     }
 
-    function canWithdraw() public view returns (bool) {
+    function canWithdraw() override public view returns (bool) {
         return getRegistryModule()
             .getRegistryAddresses()
             .lifecycleModule
@@ -169,13 +157,13 @@ contract StakingModule is IStakingModule, IEIP4626, ERC165Upgradeable, ERC20Perm
         assets = convertToAssets(shares);
     }
     
-    function getScheduledShares(address receiver_) external view returns (uint256 scheduledShares) {
-        Schedulers.ScheduledDeposit memory scheduledDeposit = scheduledDeposits[receiver_];
+    function getScheduledShares(address receiver) override external view returns (uint256 scheduledShares) {
+        Schedulers.ScheduledDeposit memory scheduledDeposit = scheduledDeposits[receiver];
         scheduledShares = scheduledDeposit.processScheduledShares(sharePriceByEpoch, _getEpochId());
     }
 
-    function getScheduledAssets(address receiver_) external view returns (uint256 scheduledAssets) {
-        Schedulers.ScheduledWithdrawal memory scheduledWithdrawal = scheduledWithdrawals[receiver_];
+    function getScheduledAssets(address receiver) override external view returns (uint256 scheduledAssets) {
+        Schedulers.ScheduledWithdrawal memory scheduledWithdrawal = scheduledWithdrawals[receiver];
         scheduledAssets = scheduledWithdrawal.processScheduledAssets(sharePriceByEpoch, _getEpochId());
     }
 
@@ -193,8 +181,13 @@ contract StakingModule is IStakingModule, IEIP4626, ERC165Upgradeable, ERC20Perm
 
         emit Deposit(msg.sender, receiver, assets, shares);
     }
+
+    function depositRef(uint256 assets, address receiver, uint256 referralId) override external returns (uint256 shares) {
+        shares = deposit(assets, receiver);
+        emit Referral(referralId);
+    }
     
-    function mint(uint256 shares, address receiver) override external onlyIfCanDeposit nonReentrant returns (uint256 assets) {
+    function mint(uint256 shares, address receiver) override public onlyIfCanDeposit nonReentrant returns (uint256 assets) {
         // No need to check for rounding error, previewMint rounds up
         assets = previewMint(shares);
         // Transfer tokens in
@@ -205,6 +198,11 @@ contract StakingModule is IStakingModule, IEIP4626, ERC165Upgradeable, ERC20Perm
         _mint(receiver, shares);
 
         emit Deposit(msg.sender, receiver, assets, shares);
+    }
+
+    function mintRef(uint256 shares, address receiver, uint256 referralId) override public returns (uint256 assets) {
+        assets = mint(shares, receiver);
+        emit Referral(referralId);
     }
 
     function withdraw(uint256 assets, address receiver, address owner) override external onlyIfCanWithdraw nonReentrant returns (uint256 shares) {
@@ -253,7 +251,7 @@ contract StakingModule is IStakingModule, IEIP4626, ERC165Upgradeable, ERC20Perm
         _executeCall(address(_getUnderlying()), data);
     }
 
-    function scheduleDeposit(uint256 assets, address receiver) external nonReentrant returns (uint256 shares) {
+    function scheduleDeposit(uint256 assets, address receiver) override public nonReentrant returns (uint256 shares) {
         if (canDeposit()) {
             return deposit(assets, receiver);
         }
@@ -284,7 +282,12 @@ contract StakingModule is IStakingModule, IEIP4626, ERC165Upgradeable, ERC20Perm
         emit ScheduledDeposit(msg.sender, receiver, assets);
     }
 
-    function unscheduleDeposit(uint256 assets) external nonReentrant {
+    function scheduleDepositRef(uint256 assets, address receiver, uint256 referralId) override external returns (uint256 shares) {
+        shares = scheduleDeposit(assets, receiver);
+        emit Referral(referralId);
+    }
+
+    function unscheduleDeposit(uint256 assets) override external nonReentrant {
         Schedulers.ScheduledDeposit memory scheduledDeposit = scheduledDeposits[msg.sender];
         require(scheduledDeposit.updatedAtEpoch == _getEpochId(), "Nothing scheduled");
 
@@ -302,7 +305,7 @@ contract StakingModule is IStakingModule, IEIP4626, ERC165Upgradeable, ERC20Perm
         emit UnscheduledDeposit(msg.sender, assets);
     }
 
-    function claimScheduledShares(uint256 shares, bool claimAll) external nonReentrant {
+    function claimScheduledShares(uint256 shares, bool claimAll) override external nonReentrant {
         Schedulers.ScheduledDeposit memory scheduledDeposit = scheduledDeposits[msg.sender];
 
         uint256 scheduledShares = scheduledDeposit.processScheduledShares(sharePriceByEpoch, _getEpochId());
@@ -334,7 +337,7 @@ contract StakingModule is IStakingModule, IEIP4626, ERC165Upgradeable, ERC20Perm
         emit SharesClaimed(msg.sender, shares);
     }
 
-    function scheduleWithdrawal(uint256 shares, address receiver, address owner) external nonReentrant returns (uint256 assets) {
+    function scheduleWithdrawal(uint256 shares, address receiver, address owner) override external nonReentrant returns (uint256 assets) {
         if (canWithdraw()) {
             return redeem(shares, receiver, owner);
         }
@@ -374,7 +377,7 @@ contract StakingModule is IStakingModule, IEIP4626, ERC165Upgradeable, ERC20Perm
         emit ScheduledWithdrawal(msg.sender, receiver, owner, shares);
     }
 
-    function unscheduleWithdrawal(uint256 shares) external nonReentrant {
+    function unscheduleWithdrawal(uint256 shares) override external nonReentrant {
         Schedulers.ScheduledWithdrawal memory scheduledWithdrawal = scheduledWithdrawals[msg.sender];
         require(scheduledWithdrawal.updatedAtEpoch == _getEpochId(), "Nothing scheduled");
 
@@ -392,7 +395,7 @@ contract StakingModule is IStakingModule, IEIP4626, ERC165Upgradeable, ERC20Perm
         emit UnscheduledWithdrawal(msg.sender, shares);
     }
 
-    function claimScheduledAssets(uint256 assets, bool claimAll) external nonReentrant {
+    function claimScheduledAssets(uint256 assets, bool claimAll) override external nonReentrant {
         Schedulers.ScheduledWithdrawal memory scheduledWithdrawal = scheduledWithdrawals[msg.sender];
 
         uint256 scheduledAssets = scheduledWithdrawal.processScheduledAssets(sharePriceByEpoch, _getEpochId());
@@ -424,38 +427,7 @@ contract StakingModule is IStakingModule, IEIP4626, ERC165Upgradeable, ERC20Perm
         emit AssetsClaimed(msg.sender, assets);
     }
 
-    function postRebalancing() override external onlyLifecycleModule {
-        // Write new price
-        sharePriceByEpoch[_getEpochId() - 1] = convertToShares(Schedulers.BASE);
-
-        uint256 sharesToMint = previewDeposit(totalScheduledDeposits);
-        uint256 assetsToWithdraw = previewRedeem(totalScheduledWithdrawals);
-
-        if (sharesToMint > totalScheduledWithdrawals) {
-            _mint(address(this), sharesToMint - totalScheduledWithdrawals);
-        } else {
-            _burn(address(this), totalScheduledWithdrawals - sharesToMint);
-        }
-
-        if (totalScheduledDeposits > assetsToWithdraw) {
-            // Transfer tokens to vault
-            _getUnderlying().safeTransfer(address(_executor), totalScheduledDeposits - assetsToWithdraw);
-            // Trigger Accounting Module
-            getRegistryModule().getRegistryAddresses().accountingModule.changeTotalLiquidity(totalScheduledDeposits - assetsToWithdraw, true);
-        } else {
-            // Transfer tokens from vault
-            bytes memory data = abi.encodeWithSelector(bytes4(keccak256(bytes("transfer(address,uint256)"))), address(this), assetsToWithdraw - totalScheduledDeposits);
-            _executeCall(address(_getUnderlying()), data);
-            // Trigger Accounting Module
-            getRegistryModule().getRegistryAddresses().accountingModule.changeTotalLiquidity(assetsToWithdraw - totalScheduledDeposits, false);
-        }
-
-        // Clear total scheduled deposits and withdrawals
-        totalScheduledDeposits = 0;
-        totalScheduledWithdrawals = 0;
-    }
-
-    function rageQuit(uint256 shares, address receiver, address owner, address[] calldata tokens) external nonReentrant {
+    function rageQuit(uint256 shares, address receiver, address owner, address[] calldata tokens) override external nonReentrant {
         // If sender is not owner of the shares, decrease allowance
         // If allowance is less than shares, will revert with overflow
         if (msg.sender != owner) {
@@ -506,6 +478,47 @@ contract StakingModule is IStakingModule, IEIP4626, ERC165Upgradeable, ERC20Perm
 
     /* PRIVATE */
 
+    function postRebalancing() override external {
+        // Only Lifecycle Module
+        require(
+            msg.sender == address(
+                getRegistryModule()
+                    .getRegistryAddresses()
+                    .lifecycleModule
+            ),
+            "S5"
+        );
+
+        // Write new price
+        sharePriceByEpoch[_getEpochId() - 1] = convertToShares(Schedulers.BASE);
+
+        uint256 sharesToMint = previewDeposit(totalScheduledDeposits);
+        uint256 assetsToWithdraw = previewRedeem(totalScheduledWithdrawals);
+
+        if (sharesToMint > totalScheduledWithdrawals) {
+            _mint(address(this), sharesToMint - totalScheduledWithdrawals);
+        } else {
+            _burn(address(this), totalScheduledWithdrawals - sharesToMint);
+        }
+
+        if (totalScheduledDeposits > assetsToWithdraw) {
+            // Transfer tokens to vault
+            _getUnderlying().safeTransfer(address(_executor), totalScheduledDeposits - assetsToWithdraw);
+            // Trigger Accounting Module
+            getRegistryModule().getRegistryAddresses().accountingModule.changeTotalLiquidity(totalScheduledDeposits - assetsToWithdraw, true);
+        } else {
+            // Transfer tokens from vault
+            bytes memory data = abi.encodeWithSelector(bytes4(keccak256(bytes("transfer(address,uint256)"))), address(this), assetsToWithdraw - totalScheduledDeposits);
+            _executeCall(address(_getUnderlying()), data);
+            // Trigger Accounting Module
+            getRegistryModule().getRegistryAddresses().accountingModule.changeTotalLiquidity(assetsToWithdraw - totalScheduledDeposits, false);
+        }
+
+        // Clear total scheduled deposits and withdrawals
+        totalScheduledDeposits = 0;
+        totalScheduledWithdrawals = 0;
+    }
+
     /* PRIVATE -> GETTERS */
     function _getUnderlying() private view returns (IERC20MetadataUpgradeable) {
         return getRegistryModule()
@@ -514,7 +527,7 @@ contract StakingModule is IStakingModule, IEIP4626, ERC165Upgradeable, ERC20Perm
             .getUnderlying();
     }
 
-    function _getEpochId() internal view returns (uint256) {
+    function _getEpochId() private view returns (uint256) {
         return ILifecycleModule(
             getRegistryModule()
                 .getRegistryAddresses()
