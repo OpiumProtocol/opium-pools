@@ -86,16 +86,6 @@
       "kind": "transparent"
     },
     {
-      "address": "0x9E545E3C0baAB3E08CdfD552C960A1050f373042",
-      "txHash": "0x94dd848b79492fd075ea1f19f1ecd1fb1d79d128acda1ef6b639687afc8a8f74",
-      "kind": "transparent"
-    },
-    {
-      "address": "0xc3e53F4d16Ae77Db1c982e75a937B9f60FE63690",
-      "txHash": "0x8e8e62b71dcf5ea6495f13bcee9e52cdaff8166ff95852aa4d3840a1665c2329",
-      "kind": "transparent"
-    },
-    {
       "address": "0xf5059a5D33d5853360D16C683c16e67980206f36",
       "txHash": "0x5ab687a1f1ed46eab51659db641a3ce41b4bab4779e2d744d5737021fb23c2cf",
       "kind": "transparent"
@@ -117,37 +107,62 @@
     },
     {
       "address": "0xa82fF9aFd8f496c3d6ac40E2a0F282E47488CFc9",
-      "txHash": "0xff42a262db32904dcb7127f7d45513ce2ed67d3dbdcfd2d0aa8fd896605880b8",
+      "txHash": "0x7bbaf2a0e5273331366972b8f8e68d49ddb5c02aa50289776e1a54e9cddffcb5",
       "kind": "transparent"
     },
     {
       "address": "0x851356ae760d987E095750cCeb3bC6014560891C",
-      "txHash": "0x1cf0f19f6cfee7797022ee5930401d8b985cab21d22b37977fc4ed326de1d86d",
+      "txHash": "0xb1ffd1fac8617c55430f847bced368c3296f1a239c1e1e9987346313ab6f6851",
       "kind": "transparent"
     },
     {
       "address": "0xc5a5C42992dECbae36851359345FE25997F5C42d",
-      "txHash": "0x30159f449f17bb482599c5cc86d17bf25a87427ddd1b13407e0a3d8101f5f430",
+      "txHash": "0x94532769c8eba9acd192f6b108ee29dd6c6afa198c429a009d6cdf9adca849a3",
       "kind": "transparent"
     },
     {
       "address": "0xE6E340D132b5f46d1e472DebcD681B2aBc16e57E",
-      "txHash": "0x20aa7065a200b567aac838177abc29f3682e19414ff68d646a594376c64d86b9",
+      "txHash": "0xf75dbbf7859d871cf971b2934f4d19ad5fdbd470c5a108915f2d6a41fac62213",
       "kind": "transparent"
     },
     {
       "address": "0x84eA74d481Ee0A5332c457a4d796187F6Ba67fEB",
-      "txHash": "0x62a64f038e7dd4579b47587d08a606fa91207ad06276adaefdb13d9c4ec672fc",
+      "txHash": "0x8caf14c9793ed27dd9fb4f91aefca3791bcbf83ab416d1e3e11754ad15ef54f5",
+      "kind": "transparent"
+    },
+    {
+      "address": "0x9E545E3C0baAB3E08CdfD552C960A1050f373042",
+      "txHash": "0x70e029b3f9130a5d718f0c88724db39e1281d56df5c60cb0eb78f9088db55b77",
       "kind": "transparent"
     },
     {
       "address": "0x09635F643e140090A9A8Dcd712eD6285858ceBef",
-      "txHash": "0xc155a13917acf0fb257566457ed3cfe2f60c2d42402cb74bb4eed1e25e06b3b5",
+      "txHash": "0x83f18eb80159e4415aa7f0d04b4cae5492ef204e2d7a50bb88123f402e4f4aab",
       "kind": "transparent"
     },
     {
       "address": "0x67d269191c92Caf3cD7723F116c85e6E9bf55933",
-      "txHash": "0x985ffd86845d7b8410b2d158fa68aedd511b16d5b74bf72506df9d0c8bb6995e",
+      "txHash": "0x15c5c99638aed0bd70dd29195983a1606fd03c17460228ad3baa09a12ca1056c",
+      "kind": "transparent"
+    },
+    {
+      "address": "0xc3e53F4d16Ae77Db1c982e75a937B9f60FE63690",
+      "txHash": "0xc395bbe7d27a51628eb4f7e1cea2cf8d9a673c97ad8fba57e4ff715ece645f03",
+      "kind": "transparent"
+    },
+    {
+      "address": "0x5eb3Bc0a489C5A8288765d2336659EbCA68FCd00",
+      "txHash": "0x7ef02eef5adb1c3617aa95d44fddaca0c11e6d35e39d177a869e32d5661c7b74",
+      "kind": "transparent"
+    },
+    {
+      "address": "0x809d550fca64d94Bd9F66E60752A544199cfAC3D",
+      "txHash": "0x5e2a7597d49855bc3e14a48bef4ee2a9d76cfba1fcccba5e9250729351586a1e",
+      "kind": "transparent"
+    },
+    {
+      "address": "0x1291Be112d480055DaFd8a610b7d1e203891C274",
+      "txHash": "0xf316e36c0447382708c93d6055c539f9a90dbecf5d436ad7a39a76ccc8c21f19",
       "kind": "transparent"
     }
   ],
@@ -1161,7 +1176,7 @@
     },
     "01ae1e0951f759073d896d01ce209c5be055102309dfcd7a4fc0d365532fd6c9": {
       "address": "0x9A676e781A523b5d0C0e43731313A708CB607508",
-      "txHash": "0x01b75287f2bc7597625f628153e70f290b9664001271a89591e57097b8cf646f",
+      "txHash": "0x6f7dd0117ac8e047daea5ef06790d0c0cf6dcbb9e4e27e616403e78eef8805b2",
       "layout": {
         "storage": [
           {
@@ -1225,7 +1240,7 @@
             "label": "_registryModule",
             "offset": 0,
             "slot": "151",
-            "type": "t_contract(IRegistryAndZodiacModule)7220",
+            "type": "t_contract(IRegistryAndZodiacModule)7225",
             "contract": "RegistryManager",
             "src": "contracts/base/RegistryManager.sol:15"
           }
@@ -1247,7 +1262,7 @@
             "label": "bool",
             "numberOfBytes": "1"
           },
-          "t_contract(IRegistryAndZodiacModule)7220": {
+          "t_contract(IRegistryAndZodiacModule)7225": {
             "label": "contract IRegistryAndZodiacModule",
             "numberOfBytes": "20"
           },
@@ -1263,8 +1278,8 @@
       }
     },
     "82372728ae7eb96bbfcdb0952eefa5bf861140686ba3b55e81a9d0af4ff81863": {
-      "address": "0x7a2088a1bFc9d81c55368AE168C2C02570cB814F",
-      "txHash": "0x50d49553c17ec0ca74d0c4777579461765799051a0559b2407bc86fb7d243e24",
+      "address": "0x9d4454B023096f34B160D6B654540c56A1F81688",
+      "txHash": "0x1a8a109189f39d7e7dd25efb7dcd26c784046fbbac0bffd062ff1ea15a435446",
       "layout": {
         "storage": [
           {
@@ -1328,7 +1343,7 @@
             "label": "_registryModule",
             "offset": 0,
             "slot": "151",
-            "type": "t_contract(IRegistryAndZodiacModule)7220",
+            "type": "t_contract(IRegistryAndZodiacModule)7225",
             "contract": "RegistryManager",
             "src": "contracts/base/RegistryManager.sol:15"
           },
@@ -1338,7 +1353,7 @@
             "slot": "152",
             "type": "t_uint256",
             "contract": "AccountingModule",
-            "src": "contracts/modules/AccountingModule.sol:27"
+            "src": "contracts/modules/AccountingModule.sol:30"
           },
           {
             "label": "_annualMaintenanceFee",
@@ -1346,7 +1361,7 @@
             "slot": "153",
             "type": "t_uint256",
             "contract": "AccountingModule",
-            "src": "contracts/modules/AccountingModule.sol:28"
+            "src": "contracts/modules/AccountingModule.sol:32"
           },
           {
             "label": "_feeCollector",
@@ -1354,7 +1369,7 @@
             "slot": "154",
             "type": "t_address",
             "contract": "AccountingModule",
-            "src": "contracts/modules/AccountingModule.sol:29"
+            "src": "contracts/modules/AccountingModule.sol:34"
           },
           {
             "label": "_underlying",
@@ -1362,7 +1377,7 @@
             "slot": "155",
             "type": "t_contract(IERC20MetadataUpgradeable)4387",
             "contract": "AccountingModule",
-            "src": "contracts/modules/AccountingModule.sol:32"
+            "src": "contracts/modules/AccountingModule.sol:38"
           },
           {
             "label": "_totalLiquidity",
@@ -1370,7 +1385,7 @@
             "slot": "156",
             "type": "t_uint256",
             "contract": "AccountingModule",
-            "src": "contracts/modules/AccountingModule.sol:34"
+            "src": "contracts/modules/AccountingModule.sol:40"
           },
           {
             "label": "_accumulatedFees",
@@ -1378,7 +1393,7 @@
             "slot": "157",
             "type": "t_uint256",
             "contract": "AccountingModule",
-            "src": "contracts/modules/AccountingModule.sol:35"
+            "src": "contracts/modules/AccountingModule.sol:42"
           },
           {
             "label": "_holdingPositions",
@@ -1386,7 +1401,7 @@
             "slot": "158",
             "type": "t_struct(AddressSet)6325_storage",
             "contract": "AccountingModule",
-            "src": "contracts/modules/AccountingModule.sol:37"
+            "src": "contracts/modules/AccountingModule.sol:44"
           }
         ],
         "types": {
@@ -1418,7 +1433,7 @@
             "label": "contract IERC20MetadataUpgradeable",
             "numberOfBytes": "20"
           },
-          "t_contract(IRegistryAndZodiacModule)7220": {
+          "t_contract(IRegistryAndZodiacModule)7225": {
             "label": "contract IRegistryAndZodiacModule",
             "numberOfBytes": "20"
           },
@@ -1468,8 +1483,8 @@
       }
     },
     "bcf8a6a5f437812891e3ed3b8c00b45db8982accc26344717cdd26c21aa6de3e": {
-      "address": "0xc5a5C42992dECbae36851359345FE25997F5C42d",
-      "txHash": "0x2ad233247bb9951111e3295bef811dc3506fd8e26383e8fbc41f7af1ac569b82",
+      "address": "0x36C02dA8a0983159322a80FFE9F24b1acfF8B570",
+      "txHash": "0x34158643bccd1a59d0e2eb885dc37c777b049db7246c55b08c5fa8e30a8a2df5",
       "layout": {
         "storage": [
           {
@@ -1533,7 +1548,7 @@
             "label": "_registryModule",
             "offset": 0,
             "slot": "151",
-            "type": "t_contract(IRegistryAndZodiacModule)7220",
+            "type": "t_contract(IRegistryAndZodiacModule)7225",
             "contract": "RegistryManager",
             "src": "contracts/base/RegistryManager.sol:15"
           },
@@ -1543,7 +1558,7 @@
             "slot": "152",
             "type": "t_uint256",
             "contract": "LifecycleModule",
-            "src": "contracts/modules/LifecycleModule.sol:25"
+            "src": "contracts/modules/LifecycleModule.sol:26"
           },
           {
             "label": "_epochLength",
@@ -1551,7 +1566,7 @@
             "slot": "153",
             "type": "t_uint256",
             "contract": "LifecycleModule",
-            "src": "contracts/modules/LifecycleModule.sol:26"
+            "src": "contracts/modules/LifecycleModule.sol:28"
           },
           {
             "label": "_stakingPhaseLength",
@@ -1559,7 +1574,7 @@
             "slot": "154",
             "type": "t_uint256",
             "contract": "LifecycleModule",
-            "src": "contracts/modules/LifecycleModule.sol:27"
+            "src": "contracts/modules/LifecycleModule.sol:30"
           },
           {
             "label": "_tradingPhaseLength",
@@ -1567,7 +1582,7 @@
             "slot": "155",
             "type": "t_uint256",
             "contract": "LifecycleModule",
-            "src": "contracts/modules/LifecycleModule.sol:28"
+            "src": "contracts/modules/LifecycleModule.sol:32"
           },
           {
             "label": "_currentEpochStart",
@@ -1575,7 +1590,7 @@
             "slot": "156",
             "type": "t_uint256",
             "contract": "LifecycleModule",
-            "src": "contracts/modules/LifecycleModule.sol:30"
+            "src": "contracts/modules/LifecycleModule.sol:34"
           }
         ],
         "types": {
@@ -1595,7 +1610,7 @@
             "label": "bool",
             "numberOfBytes": "1"
           },
-          "t_contract(IRegistryAndZodiacModule)7220": {
+          "t_contract(IRegistryAndZodiacModule)7225": {
             "label": "contract IRegistryAndZodiacModule",
             "numberOfBytes": "20"
           },
@@ -1610,9 +1625,9 @@
         }
       }
     },
-    "7b1b8b8903507e5778daf950af300fb3ce64ec3585ce606b573b00ffde29f2b0": {
-      "address": "0xE6E340D132b5f46d1e472DebcD681B2aBc16e57E",
-      "txHash": "0xdde8d4ec5e4ea54674c5d33b605fb10736a2c8bcf5407ce33b7fa29696c4eae4",
+    "3e57dfaa1497569ffb7c9007b250295a783e59c4e0088193d8720b399c31778b": {
+      "address": "0x4c5859f0F772848b2D91F1D83E2Fe57935348029",
+      "txHash": "0x88a0e59524481f42165311004e3aac29c58811a31fafac3e2840b54bab9acf86",
       "layout": {
         "storage": [
           {
@@ -1781,7 +1796,7 @@
             "label": "_registryModule",
             "offset": 0,
             "slot": "354",
-            "type": "t_contract(IRegistryAndZodiacModule)7220",
+            "type": "t_contract(IRegistryAndZodiacModule)7225",
             "contract": "RegistryManager",
             "src": "contracts/base/RegistryManager.sol:15"
           },
@@ -1789,17 +1804,17 @@
             "label": "scheduledDeposits",
             "offset": 0,
             "slot": "355",
-            "type": "t_mapping(t_address,t_struct(ScheduledDeposit)11059_storage)",
+            "type": "t_mapping(t_address,t_struct(ScheduledDeposit)11224_storage)",
             "contract": "StakingModule",
-            "src": "contracts/modules/StakingModule.sol:36"
+            "src": "contracts/modules/StakingModule.sol:42"
           },
           {
             "label": "scheduledWithdrawals",
             "offset": 0,
             "slot": "356",
-            "type": "t_mapping(t_address,t_struct(ScheduledWithdrawal)11066_storage)",
+            "type": "t_mapping(t_address,t_struct(ScheduledWithdrawal)11231_storage)",
             "contract": "StakingModule",
-            "src": "contracts/modules/StakingModule.sol:37"
+            "src": "contracts/modules/StakingModule.sol:44"
           },
           {
             "label": "sharePriceByEpoch",
@@ -1807,7 +1822,7 @@
             "slot": "357",
             "type": "t_mapping(t_uint256,t_uint256)",
             "contract": "StakingModule",
-            "src": "contracts/modules/StakingModule.sol:39"
+            "src": "contracts/modules/StakingModule.sol:46"
           },
           {
             "label": "totalScheduledDeposits",
@@ -1815,7 +1830,7 @@
             "slot": "358",
             "type": "t_uint256",
             "contract": "StakingModule",
-            "src": "contracts/modules/StakingModule.sol:41"
+            "src": "contracts/modules/StakingModule.sol:48"
           },
           {
             "label": "totalScheduledWithdrawals",
@@ -1823,7 +1838,7 @@
             "slot": "359",
             "type": "t_uint256",
             "contract": "StakingModule",
-            "src": "contracts/modules/StakingModule.sol:42"
+            "src": "contracts/modules/StakingModule.sol:50"
           }
         ],
         "types": {
@@ -1851,7 +1866,7 @@
             "label": "bytes32",
             "numberOfBytes": "32"
           },
-          "t_contract(IRegistryAndZodiacModule)7220": {
+          "t_contract(IRegistryAndZodiacModule)7225": {
             "label": "contract IRegistryAndZodiacModule",
             "numberOfBytes": "20"
           },
@@ -1863,11 +1878,11 @@
             "label": "mapping(address => struct CountersUpgradeable.Counter)",
             "numberOfBytes": "32"
           },
-          "t_mapping(t_address,t_struct(ScheduledDeposit)11059_storage)": {
+          "t_mapping(t_address,t_struct(ScheduledDeposit)11224_storage)": {
             "label": "mapping(address => struct Schedulers.ScheduledDeposit)",
             "numberOfBytes": "32"
           },
-          "t_mapping(t_address,t_struct(ScheduledWithdrawal)11066_storage)": {
+          "t_mapping(t_address,t_struct(ScheduledWithdrawal)11231_storage)": {
             "label": "mapping(address => struct Schedulers.ScheduledWithdrawal)",
             "numberOfBytes": "32"
           },
@@ -1895,7 +1910,7 @@
             ],
             "numberOfBytes": "32"
           },
-          "t_struct(ScheduledDeposit)11059_storage": {
+          "t_struct(ScheduledDeposit)11224_storage": {
             "label": "struct Schedulers.ScheduledDeposit",
             "members": [
               {
@@ -1919,7 +1934,7 @@
             ],
             "numberOfBytes": "96"
           },
-          "t_struct(ScheduledWithdrawal)11066_storage": {
+          "t_struct(ScheduledWithdrawal)11231_storage": {
             "label": "struct Schedulers.ScheduledWithdrawal",
             "members": [
               {

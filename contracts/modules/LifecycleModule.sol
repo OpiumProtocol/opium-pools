@@ -19,16 +19,25 @@ import "../interfaces/IStakingModule.sol";
         - LM3 - Epoch length is wrong
  */
 contract LifecycleModule is ILifecycleModule, RegistryManager {
-    // 10 second buffer for phases to double check and prevent timestamp manipulations as an additional security measure
+    /// @notice 10 second buffer for phases to double check and prevent timestamp manipulations as an additional security measure
     uint256 public constant TIME_DELTA = 10;
 
+    /// @notice Holds the value of the current epoch id (number)
     uint256 private _epochId;
+    /// @notice Hold the value of the epoch length
     uint256 private _epochLength;
+    /// @notice Hold the value of the Staking Phase length
     uint256 private _stakingPhaseLength;
+    /// @notice Holds the value of the Trading Phase length
     uint256 private _tradingPhaseLength;
-
+    /// @notice Holds the timestamp when the current epoch started
     uint256 private _currentEpochStart;
 
+    /// @notice Initializer of the Lifecycle Module
+    /// @param currentEpochStart_ timestamp of the start of the first epoch
+    /// @param lengths_ an array containing epoch, staking phase and trading phase lengths in seconds
+    /// @param registryModule_ instance of a Registry Module to connect to
+    /// @param owner_ address of the contract owner
     function initialize(
         uint256 currentEpochStart_,
         uint256[3] memory lengths_,
@@ -37,11 +46,15 @@ contract LifecycleModule is ILifecycleModule, RegistryManager {
     )
         external initializer
     {
+        // Initialize Registry Manager
         __RegistryManager_init(registryModule_, owner_);
+        // Set current epoch start
         _setCurrentEpochStart(currentEpochStart_);
+        // Set lengths
         _setLengths(lengths_);
     }
 
+    /// @notice Restricts access to function to Accounting Module only
     modifier onlyAccountingModule() {
         require(
             msg.sender == address(
@@ -55,30 +68,38 @@ contract LifecycleModule is ILifecycleModule, RegistryManager {
     }
 
     // External getters
+    /// @notice Returns current epoch ID (number)
     function getEpochId() override external view returns (uint256) {
         return _epochId;
     }
 
+    /// @notice Returns the timestamp of the current epoch start
     function getCurrentEpochStart() override external view returns (uint256) {
         return _currentEpochStart;
     }
 
+    /// @notice Returns the timestamp of the current epoch end
     function getCurrentEpochEnd() override external view returns (uint256) {
+        // current epoch end = current epoch start + epoch length
         return _currentEpochStart + _epochLength;
     }
 
+    /// @notice Returns the length of the epoch
     function getEpochLength() override external view returns (uint256) {
         return _epochLength;
     }
 
+    /// @notice Returns the length of the Staking Phase
     function getStakingPhaseLength() override external view returns (uint256) {
         return _stakingPhaseLength;
     }
 
+    /// @notice Returns the length of the Trading Phase
     function getTradingPhaseLength() override external view returns (uint256) {
         return _tradingPhaseLength;
     }
 
+    /// @notice Flags whether current phase is Staking Phase
     function isStakingPhase() override public view returns (bool) {
         // Check if STAKING phase is active
         // current epoch start + TIME_DELTA < now < current epoch start + staking phase length - TIME_DELTA
@@ -87,6 +108,7 @@ contract LifecycleModule is ILifecycleModule, RegistryManager {
             (block.timestamp < _currentEpochStart + _stakingPhaseLength - TIME_DELTA);
     }
 
+    /// @notice Flags whether current phase is Trading Phase
     function isTradingPhase() override public view returns (bool) {
         // Check if TRADING phase is active
         // current epoch start + staking phase length + TIME_DELTA < now < current epoch start + staking phase length + trading phase length - TIME_DELTA
@@ -95,39 +117,50 @@ contract LifecycleModule is ILifecycleModule, RegistryManager {
             (block.timestamp < _currentEpochStart + _stakingPhaseLength + _tradingPhaseLength - TIME_DELTA);
     }
 
+    /// @notice Flags whether current phase is Idle Phase
     function isIdlePhase() override public view returns (bool) {
         // Check if IDLE phase is active
         // current epoch start + staking phase length + trading phase length + TIME_DELTA < now
         return _currentEpochStart + _stakingPhaseLength + _tradingPhaseLength + TIME_DELTA < block.timestamp;
     }
 
+    /// @notice Flags whether deposits are available right now
     function canDeposit() override external view returns (bool) {
         return isStakingPhase() || isTradingPhase();
     }
 
+    /// @notice Flags whether withdrawals are available right now
     function canWithdraw() override external view returns (bool) {
         return isStakingPhase();
     }
 
+    /// @notice Flags whether trading is available right now
     function canTrade() override external view returns (bool) {
         return isTradingPhase();
     }
 
     // Public getters
+    /// @notice Flags whether the start of the Rebalancing process is possible right now
     function canRebalance() override public view returns (bool) {
         return isIdlePhase() && block.timestamp > _currentEpochStart + _epochLength;
     }
 
     // External setters
+    /// @notice Performs the epoch progressing when asked by the Accounting Module
     function progressEpoch() override external onlyAccountingModule {
+        // Check if rebalancing is possible
         require(canRebalance(), "LM2");
+        // Set new epoch start
         _setCurrentEpochStart(_currentEpochStart + _epochLength);
+        // Increment epoch ID (number)
         _epochId++;
         // Trigger post rebalancing function on Staking Module
         IStakingModule(getRegistryModule().getRegistryAddresses().stakingModule).postRebalancing();
     }
 
     // Private setters
+    /// @dev Private setter of lengths
+    /// @param lengths_ an array containing epoch, staking phase and trading phase lengths in seconds
     function _setLengths(uint256[3] memory lengths_) private {
         // Initialize epoch and phases lengths
         _epochLength = lengths_[0];
@@ -144,6 +177,8 @@ contract LifecycleModule is ILifecycleModule, RegistryManager {
         require(_tradingPhaseLength > TIME_DELTA * 2, "LM3");
     }
 
+    /// @dev Private setter of current epoch start
+    /// @param currentEpochStart_ new epoch start value
     function _setCurrentEpochStart(uint256 currentEpochStart_) private {
         _currentEpochStart = currentEpochStart_;
     }

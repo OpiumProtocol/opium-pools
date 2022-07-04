@@ -212,7 +212,7 @@ describe("RageQuit", function () {
       stakingModule
         .connect(depositor)
         .rageQuit(SHARES_QUIT, depositor.address, depositor.address, TOKENS)
-    ).to.be.revertedWith("SM6");
+    ).to.be.revertedWith("S6");
 
     // Add second position
     await mockPositionTwo
@@ -230,7 +230,7 @@ describe("RageQuit", function () {
           ...TOKENS,
           mockPositionTwo.address.toLowerCase(),
         ])
-    ).to.be.revertedWith("SM7");
+    ).to.be.revertedWith("S7");
 
     const depositorSharesBefore = await stakingModule.balanceOf(
       depositor.address

@@ -16,7 +16,10 @@ library Schedulers {
         uint256 scheduledAssets;
     }
 
-    // @notice Process scheduled deposits from previous epochs if any
+    /// @notice Process scheduled deposits from previous epochs if any
+    /// @param scheduledDeposit_ instance of scheduled deposit
+    /// @param sharePriceByEpoch_ mapping that golds share prices by epoch IDs
+    /// @param currentEpochId_ current epoch ID
     function processScheduledShares(
         ScheduledDeposit memory scheduledDeposit_,
         mapping(uint256 => uint256) storage sharePriceByEpoch_,
@@ -28,6 +31,7 @@ library Schedulers {
     {
         scheduledShares = scheduledDeposit_.scheduledShares;
 
+        // If there are deposited assets from previous epoch, calculate required shares
         if (
             scheduledDeposit_.updatedAtEpoch < currentEpochId_ &&
             scheduledDeposit_.depositedAssets != 0
@@ -39,7 +43,10 @@ library Schedulers {
         }
     }
 
-    // @notice Process scheduled withdrawals from previous epochs if any
+    /// @notice Process scheduled withdrawals from previous epochs if any
+    /// @param scheduledWithdrawal_ instance of scheduled withdrawal
+    /// @param sharePriceByEpoch_ mapping that golds share prices by epoch IDs
+    /// @param currentEpochId_ current epoch ID
     function processScheduledAssets(
         ScheduledWithdrawal memory scheduledWithdrawal_,
         mapping(uint256 => uint256) storage sharePriceByEpoch_,
@@ -50,6 +57,7 @@ library Schedulers {
     {
         scheduledAssets = scheduledWithdrawal_.scheduledAssets;
 
+        // If there are withdrawn shares from previous epoch, calculate required assets
         if (
             scheduledWithdrawal_.updatedAtEpoch < currentEpochId_ &&
             scheduledWithdrawal_.withdrawnShares != 0
