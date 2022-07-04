@@ -12,10 +12,14 @@ interface IAccountingModule {
   function getAccumulatedFees() external view returns (uint256);
   function hasPosition(address position_) external view returns (bool);
   function getFeeCollector() external view returns (address);
+  function getImmediateProfitFee() external view returns (uint256);
+  function getAnnualMaintenanceFee() external view returns (uint256);
 
   function changeTotalLiquidity(uint256 amount_, bool add_) external;
   function changeHoldingPosition(address position_, bool add_) external;
   function rebalance() external;
   function collectFees() external;
   function setFeeCollector(address feeCollector_) external;
+  function setImmediateProfitFee(uint256 immediateProfitFee_) external;
+  function setAnnualMaintenanceFee(uint256 annualMaintenanceFee_) external;
 }
