@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: agpl-3.0
 pragma solidity ^0.8.0;
 
-import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
+import "@openzeppelin/contracts-upgradeable/utils/structs/EnumerableSetUpgradeable.sol";
 
 import "../base/SafeModule.sol";
 
@@ -14,13 +14,15 @@ import "../interfaces/IRegistryModule.sol";
         - R1 = Incorrect input
  */
 contract RegistryModule is IRegistryModule, SafeModule {
-    using EnumerableSet for EnumerableSet.AddressSet;
+    using EnumerableSetUpgradeable for EnumerableSetUpgradeable.AddressSet;
 
     RegistryAddresses private _registryAddresses;
 
-    EnumerableSet.AddressSet private _strategies;
+    EnumerableSetUpgradeable.AddressSet private _strategies;
 
-    constructor(Executor executor_) SafeModule(executor_) {}
+    function initialize(Executor executor_) external initializer {
+        __SafeModule_init(executor_);
+    }
 
     // External getters
     function getRegistryAddresses() override external view returns (RegistryAddresses memory) {

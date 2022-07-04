@@ -1,6 +1,6 @@
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import { expect } from "chai";
-import { ethers } from "hardhat";
+import { ethers, upgrades } from "hardhat";
 
 import { RegistryModule } from "./../../typechain/";
 
@@ -24,7 +24,9 @@ describe("RegistryModule", function () {
     ] = await ethers.getSigners();
     // Deploy Registry Module
     const RegistryModule = await ethers.getContractFactory("RegistryModule");
-    registryModule = await RegistryModule.deploy(deployer.address);
+    registryModule = <RegistryModule>(
+      await upgrades.deployProxy(RegistryModule, [deployer.address])
+    );
     await registryModule.deployed();
   });
 

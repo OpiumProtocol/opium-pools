@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: agpl-3.0
 pragma solidity ^0.8.0;
 
-import "@openzeppelin/contracts/token/ERC20/extensions/draft-ERC20Permit.sol";
-import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import "@openzeppelin/contracts/utils/introspection/ERC165.sol";
+import "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/draft-ERC20PermitUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/utils/introspection/ERC165Upgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
 
 import "../base/RegistryManager.sol";
 
@@ -22,21 +22,22 @@ import "hardhat/console.sol";
         - S3 = zero shares on deposit
         - S4 = zero assets on redemption
  */
-contract StakingModule is IEIP4626, ERC165, ERC20Permit, RegistryManager {
-    using SafeERC20 for IERC20Metadata;
+contract StakingModule is IEIP4626, ERC165Upgradeable, ERC20PermitUpgradeable, RegistryManager {
+    using SafeERC20Upgradeable for IERC20MetadataUpgradeable;
     using FixedPointMathLib for uint256;
 
-    constructor(
+    function initialize(
         string memory name_,
         string memory symbol_,
         IRegistryModule registryModule_,
         Executor executor_
     )
-        ERC20Permit(name_)
-        ERC20(name_, symbol_)
-        RegistryManager(registryModule_)
-        SafeModule(executor_)
-    {}
+        external initializer
+    {
+        __ERC20Permit_init(name_);
+        __ERC20_init(name_, symbol_);
+        __RegistryManager_init(registryModule_, executor_);
+    }
 
     /* MODIFIERS */
 
@@ -155,7 +156,7 @@ contract StakingModule is IEIP4626, ERC165, ERC20Permit, RegistryManager {
     /* PRIVATE */
 
     /* PRIVATE -> GETTERS */
-    function _getUnderlying() private view returns (IERC20Metadata) {
+    function _getUnderlying() private view returns (IERC20MetadataUpgradeable) {
         return getRegistryModule()
             .getRegistryAddresses()
             .accountingModule

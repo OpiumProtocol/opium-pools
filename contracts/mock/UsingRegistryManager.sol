@@ -7,11 +7,10 @@ import "../base/RegistryManager.sol";
     @notice Used to test RegistryManager contract
  */
 contract UsingRegistryManager is RegistryManager {
-    constructor (
+    function initialize(
         IRegistryModule registryModule_,
         Executor executor_
-    )
-        RegistryManager(registryModule_)
-        SafeModule(executor_)
-    {}
+    ) external initializer {
+        __RegistryManager_init(registryModule_, executor_);
+    }
 }

@@ -2,7 +2,7 @@ import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import { ethers } from "hardhat";
 
 import {
-  GnosisSafe,
+  GnosisSafeL2,
   GnosisSafeProxyFactory,
   RegistryModule,
   AccountingModule,
@@ -14,8 +14,8 @@ import {
 import { decodeLogs } from "./utils/index";
 
 export const deployGnosisSafeSingleton = async () => {
-  const GnosisSafe = await ethers.getContractFactory("GnosisSafe");
-  const gnosisSafeSingleton: GnosisSafe = await GnosisSafe.deploy();
+  const GnosisSafe = await ethers.getContractFactory("GnosisSafeL2");
+  const gnosisSafeSingleton: GnosisSafeL2 = await GnosisSafe.deploy();
   await gnosisSafeSingleton.deployed();
   return gnosisSafeSingleton;
 };
@@ -31,11 +31,11 @@ export const deployGnosisSafeFactory = async () => {
 };
 
 export const deployGnosisSafe = async (
-  gnosisSafeSingleton: GnosisSafe,
+  gnosisSafeSingleton: GnosisSafeL2,
   gnosisSafeProxyFactory: GnosisSafeProxyFactory,
   owner: SignerWithAddress
 ) => {
-  const GnosisSafe = await ethers.getContractFactory("GnosisSafe");
+  const GnosisSafe = await ethers.getContractFactory("GnosisSafeL2");
 
   // Prepare initializer
   const initializer = gnosisSafeSingleton.interface.encodeFunctionData(
@@ -74,7 +74,7 @@ export const deployGnosisSafe = async (
 };
 
 export const enableModule = async (
-  gnosisSafe: GnosisSafe,
+  gnosisSafe: GnosisSafeL2,
   moduleAddress: string,
   owner: SignerWithAddress
 ) => {
@@ -100,7 +100,7 @@ export const enableModule = async (
 };
 
 export const setupRegistry = async (
-  gnosisSafe: GnosisSafe,
+  gnosisSafe: GnosisSafeL2,
   registryModule: RegistryModule,
   accountingModule: AccountingModule,
   lifecycleModule: LifecycleModule,
@@ -135,7 +135,7 @@ export const setupRegistry = async (
 };
 
 export const setStrategyAdvisor = async (
-  gnosisSafe: GnosisSafe,
+  gnosisSafe: GnosisSafeL2,
   strategyModule: OptionsSellingStrategyModule,
   advisor: SignerWithAddress,
   owner: SignerWithAddress
@@ -163,7 +163,7 @@ export const setStrategyAdvisor = async (
 };
 
 export const enableStrategyInRegistry = async (
-  gnosisSafe: GnosisSafe,
+  gnosisSafe: GnosisSafeL2,
   registryModule: RegistryModule,
   strategyAddress: string,
   owner: SignerWithAddress
@@ -190,7 +190,7 @@ export const enableStrategyInRegistry = async (
 };
 
 export const sendArbitraryTx = async (
-  gnosisSafe: GnosisSafe,
+  gnosisSafe: GnosisSafeL2,
   target: string,
   data: string,
   owner: SignerWithAddress

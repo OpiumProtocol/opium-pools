@@ -1,6 +1,6 @@
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import { expect } from "chai";
-import { ethers } from "hardhat";
+import { ethers, upgrades } from "hardhat";
 
 import {
   deployGnosisSafeSingleton,
@@ -14,9 +14,12 @@ import {
 
 import {
   MockToken,
-  GnosisSafe,
+  GnosisSafeL2,
   StakingModule,
   OptionsSellingStrategyModule,
+  RegistryModule,
+  AccountingModule,
+  LifecycleModule,
 } from "./../typechain/";
 
 import {
@@ -41,7 +44,7 @@ describe("E2E Test", function () {
   let buyer: SignerWithAddress;
   let advisor: SignerWithAddress;
 
-  let gnosisSafe: GnosisSafe;
+  let gnosisSafe: GnosisSafeL2;
   let mockToken: MockToken;
   let stakingModule: StakingModule;
   let strategyModule: OptionsSellingStrategyModule;
@@ -73,17 +76,21 @@ describe("E2E Test", function () {
 
     // Deploy Registry Module
     const RegistryModule = await ethers.getContractFactory("RegistryModule");
-    const registryModule = await RegistryModule.deploy(gnosisSafe.address);
+    const registryModule = <RegistryModule>(
+      await upgrades.deployProxy(RegistryModule, [gnosisSafe.address])
+    );
     await registryModule.deployed();
 
     // Deploy Accounting Module
     const AccountingModule = await ethers.getContractFactory(
       "AccountingModule"
     );
-    const accountingModule = await AccountingModule.deploy(
-      mockToken.address,
-      registryModule.address,
-      gnosisSafe.address
+    const accountingModule = <AccountingModule>(
+      await upgrades.deployProxy(AccountingModule, [
+        mockToken.address,
+        registryModule.address,
+        gnosisSafe.address,
+      ])
     );
     await accountingModule.deployed();
 
@@ -91,21 +98,25 @@ describe("E2E Test", function () {
     const now = await getCurrentTimestamp();
     epochStart = now - 3600; // Now - 1hour
     const LifecycleModule = await ethers.getContractFactory("LifecycleModule");
-    const lifecycleModule = await LifecycleModule.deploy(
-      epochStart,
-      [EPOCH_LENGTH, STAKING_LENGTH, TRADING_LENGTH],
-      registryModule.address,
-      gnosisSafe.address
+    const lifecycleModule = <LifecycleModule>(
+      await upgrades.deployProxy(LifecycleModule, [
+        epochStart,
+        [EPOCH_LENGTH, STAKING_LENGTH, TRADING_LENGTH],
+        registryModule.address,
+        gnosisSafe.address,
+      ])
     );
     await lifecycleModule.deployed();
 
     // Deploy Staking Module
     const StakingModule = await ethers.getContractFactory("StakingModule");
-    stakingModule = await StakingModule.deploy(
-      "LP Token",
-      "LPT",
-      registryModule.address,
-      gnosisSafe.address
+    stakingModule = <StakingModule>(
+      await upgrades.deployProxy(StakingModule, [
+        "LP Token",
+        "LPT",
+        registryModule.address,
+        gnosisSafe.address,
+      ])
     );
     await stakingModule.deployed();
 
@@ -113,11 +124,13 @@ describe("E2E Test", function () {
     const OptionsSellingStrategyModule = await ethers.getContractFactory(
       "OptionsSellingStrategyModule"
     );
-    strategyModule = await OptionsSellingStrategyModule.deploy(
-      OPIUM_REGISTRY,
-      OPIUM_LENS,
-      registryModule.address,
-      gnosisSafe.address
+    strategyModule = <OptionsSellingStrategyModule>(
+      await upgrades.deployProxy(OptionsSellingStrategyModule, [
+        OPIUM_REGISTRY,
+        OPIUM_LENS,
+        registryModule.address,
+        gnosisSafe.address,
+      ])
     );
     await strategyModule.deployed();
 

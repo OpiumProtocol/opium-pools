@@ -1,6 +1,6 @@
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import { expect } from "chai";
-import { ethers } from "hardhat";
+import { ethers, upgrades } from "hardhat";
 
 import { LifecycleModule, RegistryModule } from "../../typechain";
 
@@ -47,16 +47,20 @@ describe("LifecycleModule", function () {
 
     // Deploy Registry Module
     const RegistryModule = await ethers.getContractFactory("RegistryModule");
-    registryModule = await RegistryModule.deploy(deployer.address);
+    registryModule = <RegistryModule>(
+      await upgrades.deployProxy(RegistryModule, [deployer.address])
+    );
     await registryModule.deployed();
 
     // Deploy Lifecycle Module
     const LifecycleModule = await ethers.getContractFactory("LifecycleModule");
-    lifecycleModule = await LifecycleModule.deploy(
-      currentEpochStart,
-      [EPOCH_LENGTH, STAKING_LENGTH, TRADING_LENGTH],
-      registryModule.address,
-      deployer.address
+    lifecycleModule = <LifecycleModule>(
+      await upgrades.deployProxy(LifecycleModule, [
+        currentEpochStart,
+        [EPOCH_LENGTH, STAKING_LENGTH, TRADING_LENGTH],
+        registryModule.address,
+        deployer.address,
+      ])
     );
     await lifecycleModule.deployed();
 
