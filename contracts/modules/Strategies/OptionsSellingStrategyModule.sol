@@ -14,6 +14,14 @@ import "../../base/RegistryManager.sol";
 
 import "../../interfaces/IStrategyModule.sol";
 
+import "../../utils/Selectors.sol";
+
+library OpiumSelectors {
+  bytes4 internal constant OPIUM_PROTOCOL_CREATE_AND_MINT = bytes4(keccak256(bytes("createAndMint((uint256,uint256,uint256[],address,address,address),uint256,address[2])")));
+  bytes4 internal constant OPIUM_PROTOCOL_REDEEM = bytes4(keccak256(bytes("redeem(address[],uint256)")));
+  bytes4 internal constant OPIUM_PROTOCOL_EXECUTE = bytes4(keccak256(bytes("execute(address,uint256)")));
+}
+
 /**
   @notice OptionsSellingStrategyModule allows:
     - advisors to mint desired derivatives using Vault's assets, set up premiums for minted positions
@@ -136,7 +144,7 @@ contract OptionsSellingStrategyModule is IStrategyModule, RegistryManager, Acces
 
     // Approve margin to TokenSpender to create positions
     bytes memory data = abi.encodeWithSelector(
-      bytes4(keccak256(bytes("approve(address,uint256)"))),
+      Selectors.ERC20_APPROVE,
       _opiumRegistry.getProtocolAddresses().tokenSpender,
       requiredMargin
     );
@@ -144,7 +152,7 @@ contract OptionsSellingStrategyModule is IStrategyModule, RegistryManager, Acces
 
     // Create positions
     data = abi.encodeWithSelector(
-      bytes4(keccak256(bytes("createAndMint((uint256,uint256,uint256[],address,address,address),uint256,address[2])"))),
+      OpiumSelectors.OPIUM_PROTOCOL_CREATE_AND_MINT,
       derivative_,
       availableQuantity,
       [getRegistryModule().avatar(),getRegistryModule().avatar()]
@@ -187,7 +195,7 @@ contract OptionsSellingStrategyModule is IStrategyModule, RegistryManager, Acces
     // Transfer premium in
     accountingModule.getUnderlying().safeTransferFrom(msg.sender, getRegistryModule().avatar(), quantity_ * _premiums[position_] / BASE);
     // Transfer positions out
-    bytes memory data = abi.encodeWithSelector(bytes4(keccak256(bytes("transfer(address,uint256)"))), msg.sender, quantity_);
+    bytes memory data = abi.encodeWithSelector(Selectors.ERC20_TRANSFER, msg.sender, quantity_);
     getRegistryModule().executeOnVault(position_, data);
   }
 
@@ -206,7 +214,7 @@ contract OptionsSellingStrategyModule is IStrategyModule, RegistryManager, Acces
       uint256 redeemPositions = longPositionBalance > shortPositionBalance ? shortPositionBalance : longPositionBalance;
 
       // Redeem positions
-      bytes memory data = abi.encodeWithSelector(bytes4(keccak256(bytes("redeem(address[],uint256)"))), [longPositionAddress,shortPositionAddress], redeemPositions);
+      bytes memory data = abi.encodeWithSelector(OpiumSelectors.OPIUM_PROTOCOL_REDEEM, [longPositionAddress,shortPositionAddress], redeemPositions);
       getRegistryModule().executeOnVault(_opiumRegistry.getProtocolAddresses().core, data);
 
       longPositionBalance -= redeemPositions;
@@ -215,13 +223,13 @@ contract OptionsSellingStrategyModule is IStrategyModule, RegistryManager, Acces
 
     // If any amount of LONG position remains, execute separately
     if (longPositionBalance > 0) {
-      bytes memory data = abi.encodeWithSelector(bytes4(keccak256(bytes("execute(address,uint256)"))), longPositionAddress, longPositionBalance);
+      bytes memory data = abi.encodeWithSelector(OpiumSelectors.OPIUM_PROTOCOL_EXECUTE, longPositionAddress, longPositionBalance);
       getRegistryModule().executeOnVault(_opiumRegistry.getProtocolAddresses().core, data);
     }
 
     // If any amount of SHORT position remains, execute separately
     if (shortPositionBalance > 0) {
-      bytes memory data = abi.encodeWithSelector(bytes4(keccak256(bytes("execute(address,uint256)"))), shortPositionAddress, shortPositionBalance);
+      bytes memory data = abi.encodeWithSelector(OpiumSelectors.OPIUM_PROTOCOL_EXECUTE, shortPositionAddress, shortPositionBalance);
       getRegistryModule().executeOnVault(_opiumRegistry.getProtocolAddresses().core, data);
     }
 

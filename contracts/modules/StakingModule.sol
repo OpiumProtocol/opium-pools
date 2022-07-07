@@ -11,6 +11,7 @@ import "../interfaces/IEIP4626.sol";
 import "../interfaces/IStakingModule.sol";
 import "../interfaces/ILifecycleModule.sol";
 
+import "../utils/Selectors.sol";
 import { FixedPointMathLib } from "../utils/FixedPointMathLib.sol";
 import { Schedulers } from "../utils/Schedulers.sol";
 
@@ -289,7 +290,7 @@ contract StakingModule is IStakingModule, IEIP4626, ERC165Upgradeable, ERC20Perm
         emit Withdraw(msg.sender, receiver, owner, assets, shares);
 
         // Transfer tokens out
-        bytes memory data = abi.encodeWithSelector(bytes4(keccak256(bytes("transfer(address,uint256)"))), receiver, assets);
+        bytes memory data = abi.encodeWithSelector(Selectors.ERC20_TRANSFER, receiver, assets);
         getRegistryModule().executeOnVault(address(_getUnderlying()), data);
     }
     
@@ -316,7 +317,7 @@ contract StakingModule is IStakingModule, IEIP4626, ERC165Upgradeable, ERC20Perm
         emit Withdraw(msg.sender, receiver, owner, assets, shares);
 
         // Transfer tokens out
-        bytes memory data = abi.encodeWithSelector(bytes4(keccak256(bytes("transfer(address,uint256)"))), receiver, assets);
+        bytes memory data = abi.encodeWithSelector(Selectors.ERC20_TRANSFER, receiver, assets);
         getRegistryModule().executeOnVault(address(_getUnderlying()), data);
     }
 
@@ -603,7 +604,7 @@ contract StakingModule is IStakingModule, IEIP4626, ERC165Upgradeable, ERC20Perm
             transferAmount = vaultTokenBalance * shares / cachedTotalSupply;
 
             // Transfer tokens from vault
-            bytes memory data = abi.encodeWithSelector(bytes4(keccak256(bytes("transfer(address,uint256)"))), receiver, transferAmount);
+            bytes memory data = abi.encodeWithSelector(Selectors.ERC20_TRANSFER, receiver, transferAmount);
             getRegistryModule().executeOnVault(tokens[i], data);
 
             // Write current token as previous
@@ -649,7 +650,7 @@ contract StakingModule is IStakingModule, IEIP4626, ERC165Upgradeable, ERC20Perm
             getRegistryModule().getRegistryAddresses().accountingModule.changeTotalLiquidity(totalScheduledDeposits - assetsToWithdraw, true);
         } else {
             // Transfer tokens from vault
-            bytes memory data = abi.encodeWithSelector(bytes4(keccak256(bytes("transfer(address,uint256)"))), address(this), assetsToWithdraw - totalScheduledDeposits);
+            bytes memory data = abi.encodeWithSelector(Selectors.ERC20_TRANSFER, address(this), assetsToWithdraw - totalScheduledDeposits);
             getRegistryModule().executeOnVault(address(_getUnderlying()), data);
             // Trigger Accounting Module
             getRegistryModule().getRegistryAddresses().accountingModule.changeTotalLiquidity(assetsToWithdraw - totalScheduledDeposits, false);

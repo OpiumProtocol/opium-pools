@@ -7,6 +7,8 @@ import "../base/RegistryManager.sol";
 
 import "../interfaces/IAccountingModule.sol";
 
+import "../utils/Selectors.sol";
+
 /**
     @notice Accounting Module performs accounting processes for the pool: calculates total and available liquidity, fees, tracks held positions and participates in Rebalancing process
     Error cores:
@@ -257,7 +259,7 @@ contract AccountingModule is IAccountingModule, RegistryManager {
         // Set accumulated fees to zero
         _setAccumulatedFees(0);
         // Transfer fees out
-        bytes memory data = abi.encodeWithSelector(bytes4(keccak256(bytes("transfer(address,uint256)"))), msg.sender, accumulatedFees);
+        bytes memory data = abi.encodeWithSelector(Selectors.ERC20_TRANSFER, msg.sender, accumulatedFees);
         getRegistryModule().executeOnVault(address(_underlying), data);
     }
 
