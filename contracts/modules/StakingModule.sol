@@ -43,7 +43,7 @@ contract StakingModule is IStakingModule, IEIP4626, ERC165Upgradeable, ERC20Perm
     /// @notice Holds state of the scheduled withdrawals by user address
     mapping(address => Schedulers.ScheduledWithdrawal) public scheduledWithdrawals;
     /// @notice Holds share price by epoch ID (number)
-    mapping(uint256 => uint256) public sharePriceByEpoch;
+    mapping(uint16 => uint256) public sharePriceByEpoch;
     /// @notice Holds the total amount of scheduled deposits in the current epoch
     uint256 public totalScheduledDeposits;
     /// @notice Holds the total amount of scheduled withdrawals in the current epoch
@@ -344,11 +344,14 @@ contract StakingModule is IStakingModule, IEIP4626, ERC165Upgradeable, ERC20Perm
             depositedAssets += scheduledDeposit.depositedAssets;
         }
 
+        Schedulers.assertUint120(depositedAssets);
+        Schedulers.assertUint120(scheduledShares);
+
         // Update scheduled deposit
         scheduledDeposits[receiver] = Schedulers.ScheduledDeposit({
             updatedAtEpoch: _getEpochId(),
-            depositedAssets: depositedAssets,
-            scheduledShares: scheduledShares
+            depositedAssets: uint120(depositedAssets),
+            scheduledShares: uint120(scheduledShares)
         });
 
         // Update total scheduled deposits with assets
@@ -377,7 +380,7 @@ contract StakingModule is IStakingModule, IEIP4626, ERC165Upgradeable, ERC20Perm
         // Update scheduled deposit with subtracted assets
         scheduledDeposits[msg.sender] = Schedulers.ScheduledDeposit({
             updatedAtEpoch: _getEpochId(),
-            depositedAssets: scheduledDeposit.depositedAssets - assets,
+            depositedAssets: uint120(scheduledDeposit.depositedAssets - assets),
             scheduledShares: scheduledDeposit.scheduledShares
         });
 
@@ -418,11 +421,14 @@ contract StakingModule is IStakingModule, IEIP4626, ERC165Upgradeable, ERC20Perm
             depositedAssets = 0;
         }
 
+        Schedulers.assertUint120(depositedAssets);
+        Schedulers.assertUint120(scheduledShares);
+
         // Update scheduled deposit with subtracted shares
         scheduledDeposits[msg.sender] = Schedulers.ScheduledDeposit({
             updatedAtEpoch: _getEpochId(),
-            depositedAssets: depositedAssets,
-            scheduledShares: scheduledShares - shares
+            depositedAssets: uint120(depositedAssets),
+            scheduledShares: uint120(scheduledShares - shares)
         });
 
         // Transfer shares out
@@ -467,11 +473,14 @@ contract StakingModule is IStakingModule, IEIP4626, ERC165Upgradeable, ERC20Perm
             withdrawnShares += scheduledWithdrawal.withdrawnShares;
         }
 
+        Schedulers.assertUint120(withdrawnShares);
+        Schedulers.assertUint120(scheduledAssets);
+
         // Update scheduled deposit
         scheduledWithdrawals[receiver] = Schedulers.ScheduledWithdrawal({
             updatedAtEpoch: _getEpochId(),
-            withdrawnShares: withdrawnShares,
-            scheduledAssets: scheduledAssets
+            withdrawnShares: uint120(withdrawnShares),
+            scheduledAssets: uint120(scheduledAssets)
         });
 
         emit ScheduledWithdrawal(msg.sender, receiver, owner, shares);
@@ -489,7 +498,7 @@ contract StakingModule is IStakingModule, IEIP4626, ERC165Upgradeable, ERC20Perm
         // Update scheduled withdrawal with subtracted shares
         scheduledWithdrawals[msg.sender] = Schedulers.ScheduledWithdrawal({
             updatedAtEpoch: _getEpochId(),
-            withdrawnShares: scheduledWithdrawal.withdrawnShares - shares,
+            withdrawnShares: uint120(scheduledWithdrawal.withdrawnShares - shares),
             scheduledAssets: scheduledWithdrawal.scheduledAssets
         });
 
@@ -530,11 +539,14 @@ contract StakingModule is IStakingModule, IEIP4626, ERC165Upgradeable, ERC20Perm
             withdrawnShares = 0;
         }
 
+        Schedulers.assertUint120(withdrawnShares);
+        Schedulers.assertUint120(scheduledAssets);
+
         // Update scheduled withdrawal with subtracted assets
         scheduledWithdrawals[msg.sender] = Schedulers.ScheduledWithdrawal({
             updatedAtEpoch: _getEpochId(),
-            withdrawnShares: withdrawnShares,
-            scheduledAssets: scheduledAssets - assets
+            withdrawnShares: uint120(withdrawnShares),
+            scheduledAssets: uint120(scheduledAssets - assets)
         });
 
         // Transfer tokens out
@@ -658,7 +670,7 @@ contract StakingModule is IStakingModule, IEIP4626, ERC165Upgradeable, ERC20Perm
     }
 
     /// @notice Returns current epoch ID (number)
-    function _getEpochId() private view returns (uint256) {
+    function _getEpochId() private view returns (uint16) {
         return ILifecycleModule(
             getRegistryModule()
                 .getRegistryAddresses()

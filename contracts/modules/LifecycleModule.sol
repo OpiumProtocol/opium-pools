@@ -23,7 +23,7 @@ contract LifecycleModule is ILifecycleModule, RegistryManager {
     uint256 public constant TIME_DELTA = 10;
 
     /// @notice Holds the value of the current epoch id (number)
-    uint256 private _epochId;
+    uint16 private _epochId;
     /// @notice Hold the value of the epoch length
     uint256 private _epochLength;
     /// @notice Hold the value of the Staking Phase length
@@ -69,7 +69,7 @@ contract LifecycleModule is ILifecycleModule, RegistryManager {
 
     // External getters
     /// @notice Returns current epoch ID (number)
-    function getEpochId() override external view returns (uint256) {
+    function getEpochId() override external view returns (uint16) {
         return _epochId;
     }
 

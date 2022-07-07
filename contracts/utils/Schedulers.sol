@@ -1,19 +1,24 @@
 // SPDX-License-Identifier: agpl-3.0
 pragma solidity ^0.8.0;
 
+/**
+    @notice Library with helpers for Schedulers
+
+    Error codes:
+        - SCH1 = overflow uint120
+ */
 library Schedulers {
     uint256 internal constant BASE = 1e18;
 
-    // TODO: Optimize gas
     struct ScheduledDeposit {
-        uint256 updatedAtEpoch;
-        uint256 depositedAssets;
-        uint256 scheduledShares;
+        uint16 updatedAtEpoch;
+        uint120 depositedAssets;
+        uint120 scheduledShares;
     }
     struct ScheduledWithdrawal {
-        uint256 updatedAtEpoch;
-        uint256 withdrawnShares;
-        uint256 scheduledAssets;
+        uint16 updatedAtEpoch;
+        uint120 withdrawnShares;
+        uint120 scheduledAssets;
     }
 
     /// @notice Process scheduled deposits from previous epochs if any
@@ -22,8 +27,8 @@ library Schedulers {
     /// @param currentEpochId_ current epoch ID
     function processScheduledShares(
         ScheduledDeposit memory scheduledDeposit_,
-        mapping(uint256 => uint256) storage sharePriceByEpoch_,
-        uint256 currentEpochId_
+        mapping(uint16 => uint256) storage sharePriceByEpoch_,
+        uint16 currentEpochId_
     )
         internal
         view
@@ -49,8 +54,8 @@ library Schedulers {
     /// @param currentEpochId_ current epoch ID
     function processScheduledAssets(
         ScheduledWithdrawal memory scheduledWithdrawal_,
-        mapping(uint256 => uint256) storage sharePriceByEpoch_,
-        uint256 currentEpochId_
+        mapping(uint16 => uint256) storage sharePriceByEpoch_,
+        uint16 currentEpochId_
     )
         internal
         view returns (uint256 scheduledAssets)
@@ -66,5 +71,9 @@ library Schedulers {
                 (scheduledWithdrawal_.withdrawnShares * BASE) /
                 sharePriceByEpoch_[scheduledWithdrawal_.updatedAtEpoch];
         }
+    }
+
+    function assertUint120(uint256 num) internal pure {
+        require(num <= type(uint120).max, "SCH1");
     }
 }
