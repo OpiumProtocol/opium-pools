@@ -2,6 +2,8 @@
 pragma solidity ^0.8.0;
 
 interface ILifecycleModule {
+  event EpochStarted(uint256 indexed epochId, uint256 epochStart);
+
   function getEpochId() external view returns (uint16);
   function getCurrentEpochStart() external view returns (uint256);
   function getCurrentEpochEnd() external view returns (uint256);

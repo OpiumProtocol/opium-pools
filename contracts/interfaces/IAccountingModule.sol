@@ -4,6 +4,11 @@ pragma solidity ^0.8.0;
 import "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/IERC20MetadataUpgradeable.sol";
 
 interface IAccountingModule {
+  event Rebalanced(uint256 totalLiquidityBefore, uint256 profitBeforeFees, uint256 profitFee, uint256 maintenanceFee, uint256 loss);
+  event FeeCollectorSet(address indexed previousFeeCollector, address indexed newFeeCollector);
+  event ImmediateProfitFeeSet(uint256 previousFee, uint256 newFee);
+  event AnnualMaintenanceFeeSet(uint256 previousFee, uint256 newFee);
+
   function getUnderlying() external view returns (IERC20MetadataUpgradeable);
   function getTotalLiquidity() external view returns (uint256);
   function getUtilizedLiquidity() external view returns (uint256);

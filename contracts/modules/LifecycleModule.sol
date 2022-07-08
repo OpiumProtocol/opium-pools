@@ -52,13 +52,15 @@ contract LifecycleModule is ILifecycleModule, RegistryManager {
         _setCurrentEpochStart(currentEpochStart_);
         // Set lengths
         _setLengths(lengths_);
+
+        emit EpochStarted(0, _currentEpochStart);
     }
 
     /// @notice Restricts access to function to Accounting Module only
     modifier onlyAccountingModule() {
         require(
             msg.sender == address(
-                getRegistryModule()
+                _registryModule
                     .getRegistryAddresses()
                     .accountingModule
             ),
@@ -154,8 +156,11 @@ contract LifecycleModule is ILifecycleModule, RegistryManager {
         _setCurrentEpochStart(_currentEpochStart + _epochLength);
         // Increment epoch ID (number)
         _epochId++;
+
+        emit EpochStarted(_epochId, _currentEpochStart);
+
         // Trigger post rebalancing function on Staking Module
-        IStakingModule(getRegistryModule().getRegistryAddresses().stakingModule).postRebalancing();
+        IStakingModule(_registryModule.getRegistryAddresses().stakingModule).postRebalancing();
     }
 
     // Private setters
