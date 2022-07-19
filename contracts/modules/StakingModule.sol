@@ -598,8 +598,11 @@ contract StakingModule is IStakingModule, IEIP4626, ERC165Upgradeable, ERC20Perm
                 tokens[i] > previousToken,
                 "S7"
             );
-            // Get the Vault's balance of the requested token 
-            vaultTokenBalance = IERC20MetadataUpgradeable(tokens[i]).balanceOf(_registryModule.avatar());
+            // Get the Vault's balance of the requested token
+            // If requested token is underlying, get the available liquidity from Accounting Module
+            vaultTokenBalance = tokens[i] == underlying
+                ? _registryModule.getRegistryAddresses().accountingModule.getAvailableLiquidity()
+                : IERC20MetadataUpgradeable(tokens[i]).balanceOf(_registryModule.avatar());
             // Calculate users share of the Vault's balance
             transferAmount = vaultTokenBalance * shares / cachedTotalSupply;
 
