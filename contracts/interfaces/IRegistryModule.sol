@@ -7,9 +7,6 @@ import "./ILifecycleModule.sol";
 interface IRegistryModule {
   event RegistryAddressesSet(RegistryAddresses registryAddresses);
 
-  event StrategyEnabled(address indexed strategyAddress);
-  event StrategyDisabled(address indexed strategyAddress);
-
   struct RegistryAddresses {
     IAccountingModule accountingModule;
     ILifecycleModule lifecycleModule;

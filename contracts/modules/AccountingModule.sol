@@ -7,6 +7,8 @@ import "../base/RegistryManager.sol";
 
 import "../interfaces/IAccountingModule.sol";
 
+import "../utils/Selectors.sol";
+
 /**
     @notice Accounting Module performs accounting processes for the pool: calculates total and available liquidity, fees, tracks held positions and participates in Rebalancing process
     Error cores:
@@ -68,7 +70,7 @@ contract AccountingModule is IAccountingModule, RegistryManager {
     modifier onlyStakingModule() {
         require(
             (
-                msg.sender == getRegistryModule()
+                msg.sender == _registryModule
                     .getRegistryAddresses()
                     .stakingModule
             ),
@@ -81,7 +83,7 @@ contract AccountingModule is IAccountingModule, RegistryManager {
     modifier onlyStrategyModule() {
         require(
             (
-                msg.sender == getRegistryModule()
+                msg.sender == _registryModule
                     .getRegistryAddresses()
                     .strategyModule
             ),
@@ -136,7 +138,7 @@ contract AccountingModule is IAccountingModule, RegistryManager {
     /// @notice Returns currently available liquidity in the Vault
     function getAvailableLiquidity() override public view returns (uint256) {
         // Get the current underlying balance of the Vault
-        uint256 poolBalance = _underlying.balanceOf(getRegistryModule().avatar());
+        uint256 poolBalance = _underlying.balanceOf(_registryModule.avatar());
 
         // Check that Vault balance is greater than accumulated fees to mitigate underflow errors
         if (poolBalance < _accumulatedFees) {
@@ -216,38 +218,44 @@ contract AccountingModule is IAccountingModule, RegistryManager {
         // previous balance = total liquidity + accumulated fees
         uint256 previousBalance = _totalLiquidity + _accumulatedFees;
         // Calculate current balance of the Vault
-        uint256 currentBalance = _underlying.balanceOf(getRegistryModule().avatar());
+        uint256 currentBalance = _underlying.balanceOf(_registryModule.avatar());
 
         // If current balance is greater than the previous balance, then pool has made profit in the current epoch and the system need to subtract fees
         if (currentBalance > previousBalance) {
             // Calculate the gained profit
-            uint256 profit = currentBalance - previousBalance;
+            uint256 profitBeforeFees = currentBalance - previousBalance;
             // Calculate immediate profit fee
-            uint256 profitFee = profit * _immediateProfitFee / BASE;
+            uint256 profitFee = profitBeforeFees * _immediateProfitFee / BASE;
             // Subtract profit fee from the profit
-            profit -= profitFee;
+            uint256 profit = profitBeforeFees - profitFee;
             // Calculate portion of the annual maintenance fee based on the epoch length
             // maintenance fee = total liquidity * annual maintenance fee * epoch length / year length
             uint256 maintenanceFee = 
                 _totalLiquidity
                     * _annualMaintenanceFee
-                    * getRegistryModule().getRegistryAddresses().lifecycleModule.getEpochLength()
+                    * _registryModule.getRegistryAddresses().lifecycleModule.getEpochLength()
                     / YEAR_SECONDS
                     / BASE;
             // Set new accumulated fees
             _setAccumulatedFees(_accumulatedFees + profitFee + maintenanceFee);
+            uint256 totalLiquidityBefore = _totalLiquidity;
             // Set new total liquidity
             _setTotalLiquidity(_totalLiquidity + profit - maintenanceFee);
+
+            emit Rebalanced(totalLiquidityBefore, profitBeforeFees, profitFee, maintenanceFee, 0);
         } else {
             // If current balance is less than or equal to previous one, then poll did not make any profit
             // Calculate the loss
             uint256 loss = previousBalance - currentBalance;
+            uint256 totalLiquidityBefore = _totalLiquidity;
             // Set new total liquidity
             _setTotalLiquidity(_totalLiquidity - loss);
+
+            emit Rebalanced(totalLiquidityBefore, 0, 0, 0, loss);
         }
 
         // Trigger Lifecycle Module to progress epoch and perform its internal logic
-        getRegistryModule().getRegistryAddresses().lifecycleModule.progressEpoch();
+        _registryModule.getRegistryAddresses().lifecycleModule.progressEpoch();
     }
 
     /// @notice Claims all the accumulated fees when asked by Fee Collector
@@ -257,8 +265,8 @@ contract AccountingModule is IAccountingModule, RegistryManager {
         // Set accumulated fees to zero
         _setAccumulatedFees(0);
         // Transfer fees out
-        bytes memory data = abi.encodeWithSelector(bytes4(keccak256(bytes("transfer(address,uint256)"))), msg.sender, accumulatedFees);
-        getRegistryModule().executeOnVault(address(_underlying), data);
+        bytes memory data = abi.encodeWithSelector(Selectors.ERC20_TRANSFER, msg.sender, accumulatedFees);
+        _registryModule.executeOnVault(address(_underlying), data);
     }
 
     /// @notice Sets the new fee collector address when asked by current Fee Collector or Owner
@@ -303,18 +311,24 @@ contract AccountingModule is IAccountingModule, RegistryManager {
     /// @dev Private setter of Fee Collector address
     /// @param feeCollector_ new Fee Collector address
     function _setFeeCollector(address feeCollector_) private {
+        address previousFeeCollector = _feeCollector;
         _feeCollector = feeCollector_;
+        emit FeeCollectorSet(previousFeeCollector, _feeCollector);
     }
 
     /// @dev Private setter of immediate profit fee
     /// @param immediateProfitFee_ new immediate profit fee
     function _setImmediateProfitFee(uint256 immediateProfitFee_) private {
+        uint256 previousFee = _immediateProfitFee;
         _immediateProfitFee = immediateProfitFee_;
+        emit ImmediateProfitFeeSet(previousFee, _immediateProfitFee);
     }
 
     /// @dev Private setter of annual maintenance fee
     /// @param annualMaintenanceFee_ new annual maintenance fee
     function _setAnnualMaintenanceFee(uint256 annualMaintenanceFee_) private {
+        uint256 previousFee = _annualMaintenanceFee;
         _annualMaintenanceFee = annualMaintenanceFee_;
+        emit AnnualMaintenanceFeeSet(previousFee, _annualMaintenanceFee);
     }
 }

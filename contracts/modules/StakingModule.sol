@@ -11,6 +11,7 @@ import "../interfaces/IEIP4626.sol";
 import "../interfaces/IStakingModule.sol";
 import "../interfaces/ILifecycleModule.sol";
 
+import "../utils/Selectors.sol";
 import { FixedPointMathLib } from "../utils/FixedPointMathLib.sol";
 import { Schedulers } from "../utils/Schedulers.sol";
 
@@ -43,7 +44,7 @@ contract StakingModule is IStakingModule, IEIP4626, ERC165Upgradeable, ERC20Perm
     /// @notice Holds state of the scheduled withdrawals by user address
     mapping(address => Schedulers.ScheduledWithdrawal) public scheduledWithdrawals;
     /// @notice Holds share price by epoch ID (number)
-    mapping(uint256 => uint256) public sharePriceByEpoch;
+    mapping(uint16 => uint256) public sharePriceByEpoch;
     /// @notice Holds the total amount of scheduled deposits in the current epoch
     uint256 public totalScheduledDeposits;
     /// @notice Holds the total amount of scheduled withdrawals in the current epoch
@@ -96,7 +97,7 @@ contract StakingModule is IStakingModule, IEIP4626, ERC165Upgradeable, ERC20Perm
 
     /// @notice Indicates whether deposits are available at the moment
     function canDeposit() override public view returns (bool) {
-        return getRegistryModule()
+        return _registryModule
             .getRegistryAddresses()
             .lifecycleModule
             .canDeposit();
@@ -104,7 +105,7 @@ contract StakingModule is IStakingModule, IEIP4626, ERC165Upgradeable, ERC20Perm
 
     /// @notice Indicates whether withdrawals are available at the moment
     function canWithdraw() override public view returns (bool) {
-        return getRegistryModule()
+        return _registryModule
             .getRegistryAddresses()
             .lifecycleModule
             .canWithdraw();
@@ -130,7 +131,7 @@ contract StakingModule is IStakingModule, IEIP4626, ERC165Upgradeable, ERC20Perm
 
     /// @notice Total amount of the underlying asset that is “managed” by Vault
     function totalAssets() override public view returns (uint256 totalManagedAssets) {
-        totalManagedAssets = getRegistryModule()
+        totalManagedAssets = _registryModule
             .getRegistryAddresses()
             .accountingModule
             .getTotalLiquidity();
@@ -225,9 +226,9 @@ contract StakingModule is IStakingModule, IEIP4626, ERC165Upgradeable, ERC20Perm
         // Check for rounding error since we round down in previewDeposit
         require((shares = previewDeposit(assets)) != 0, "S3");
         // Transfer tokens in
-        _getUnderlying().safeTransferFrom(msg.sender, getRegistryModule().avatar(), assets);
+        _getUnderlying().safeTransferFrom(msg.sender, _registryModule.avatar(), assets);
         // Trigger Accounting Module
-        getRegistryModule().getRegistryAddresses().accountingModule.changeTotalLiquidity(assets, true);
+        _registryModule.getRegistryAddresses().accountingModule.changeTotalLiquidity(assets, true);
         // Mint shares
         _mint(receiver, shares);
 
@@ -249,9 +250,9 @@ contract StakingModule is IStakingModule, IEIP4626, ERC165Upgradeable, ERC20Perm
         // No need to check for rounding error, previewMint rounds up
         assets = previewMint(shares);
         // Transfer tokens in
-        _getUnderlying().safeTransferFrom(msg.sender, getRegistryModule().avatar(), assets);
+        _getUnderlying().safeTransferFrom(msg.sender, _registryModule.avatar(), assets);
         // Trigger Accounting Module
-        getRegistryModule().getRegistryAddresses().accountingModule.changeTotalLiquidity(assets, true);
+        _registryModule.getRegistryAddresses().accountingModule.changeTotalLiquidity(assets, true);
         // Mint shares
         _mint(receiver, shares);
 
@@ -261,7 +262,7 @@ contract StakingModule is IStakingModule, IEIP4626, ERC165Upgradeable, ERC20Perm
     /// @notice Performs mint with a referral link
     /// @dev see {this.mint}
     /// @param referralId unique id of the referral
-    function mintRef(uint256 shares, address receiver, uint256 referralId) override public returns (uint256 assets) {
+    function mintRef(uint256 shares, address receiver, uint256 referralId) override external returns (uint256 assets) {
         assets = mint(shares, receiver);
         emit Referral(referralId);
     }
@@ -284,13 +285,13 @@ contract StakingModule is IStakingModule, IEIP4626, ERC165Upgradeable, ERC20Perm
         // Burn shares
         _burn(owner, shares);
         // Trigger Accounting Module
-        getRegistryModule().getRegistryAddresses().accountingModule.changeTotalLiquidity(assets, false);
+        _registryModule.getRegistryAddresses().accountingModule.changeTotalLiquidity(assets, false);
 
         emit Withdraw(msg.sender, receiver, owner, assets, shares);
 
         // Transfer tokens out
-        bytes memory data = abi.encodeWithSelector(bytes4(keccak256(bytes("transfer(address,uint256)"))), receiver, assets);
-        getRegistryModule().executeOnVault(address(_getUnderlying()), data);
+        bytes memory data = abi.encodeWithSelector(Selectors.ERC20_TRANSFER, receiver, assets);
+        _registryModule.executeOnVault(address(_getUnderlying()), data);
     }
     
     /// @notice Burns exactly shares from owner and sends assets of underlying tokens to receiver
@@ -311,13 +312,13 @@ contract StakingModule is IStakingModule, IEIP4626, ERC165Upgradeable, ERC20Perm
         // Burn shares
         _burn(owner, shares);
         // Trigger Accounting Module
-        getRegistryModule().getRegistryAddresses().accountingModule.changeTotalLiquidity(assets, false);
+        _registryModule.getRegistryAddresses().accountingModule.changeTotalLiquidity(assets, false);
 
         emit Withdraw(msg.sender, receiver, owner, assets, shares);
 
         // Transfer tokens out
-        bytes memory data = abi.encodeWithSelector(bytes4(keccak256(bytes("transfer(address,uint256)"))), receiver, assets);
-        getRegistryModule().executeOnVault(address(_getUnderlying()), data);
+        bytes memory data = abi.encodeWithSelector(Selectors.ERC20_TRANSFER, receiver, assets);
+        _registryModule.executeOnVault(address(_getUnderlying()), data);
     }
 
     /// @notice Deposits users funds directly if possible, otherwise schedules the deposit for the next epoch
@@ -327,9 +328,6 @@ contract StakingModule is IStakingModule, IEIP4626, ERC165Upgradeable, ERC20Perm
         if (canDeposit()) {
             return deposit(assets, receiver);
         }
-
-        // Transfer tokens in
-        _getUnderlying().safeTransferFrom(msg.sender, address(this), assets);
 
         // Get scheduled deposit instance
         Schedulers.ScheduledDeposit memory scheduledDeposit = scheduledDeposits[receiver];
@@ -344,15 +342,21 @@ contract StakingModule is IStakingModule, IEIP4626, ERC165Upgradeable, ERC20Perm
             depositedAssets += scheduledDeposit.depositedAssets;
         }
 
+        Schedulers.assertUint120(depositedAssets);
+        Schedulers.assertUint120(scheduledShares);
+
         // Update scheduled deposit
         scheduledDeposits[receiver] = Schedulers.ScheduledDeposit({
             updatedAtEpoch: _getEpochId(),
-            depositedAssets: depositedAssets,
-            scheduledShares: scheduledShares
+            depositedAssets: uint120(depositedAssets),
+            scheduledShares: uint120(scheduledShares)
         });
 
         // Update total scheduled deposits with assets
         totalScheduledDeposits += assets;
+
+        // Transfer tokens in
+        _getUnderlying().safeTransferFrom(msg.sender, address(this), assets);
 
         emit ScheduledDeposit(msg.sender, receiver, assets);
     }
@@ -377,7 +381,7 @@ contract StakingModule is IStakingModule, IEIP4626, ERC165Upgradeable, ERC20Perm
         // Update scheduled deposit with subtracted assets
         scheduledDeposits[msg.sender] = Schedulers.ScheduledDeposit({
             updatedAtEpoch: _getEpochId(),
-            depositedAssets: scheduledDeposit.depositedAssets - assets,
+            depositedAssets: uint120(scheduledDeposit.depositedAssets - assets),
             scheduledShares: scheduledDeposit.scheduledShares
         });
 
@@ -418,11 +422,14 @@ contract StakingModule is IStakingModule, IEIP4626, ERC165Upgradeable, ERC20Perm
             depositedAssets = 0;
         }
 
+        Schedulers.assertUint120(depositedAssets);
+        Schedulers.assertUint120(scheduledShares);
+
         // Update scheduled deposit with subtracted shares
         scheduledDeposits[msg.sender] = Schedulers.ScheduledDeposit({
             updatedAtEpoch: _getEpochId(),
-            depositedAssets: depositedAssets,
-            scheduledShares: scheduledShares - shares
+            depositedAssets: uint120(depositedAssets),
+            scheduledShares: uint120(scheduledShares - shares)
         });
 
         // Transfer shares out
@@ -448,9 +455,6 @@ contract StakingModule is IStakingModule, IEIP4626, ERC165Upgradeable, ERC20Perm
             }
         }
 
-        // Transfer shares in
-        _transfer(owner, address(this), shares);
-
         // Update total scheduled withdrawals with shares
         totalScheduledWithdrawals += shares;
 
@@ -467,12 +471,18 @@ contract StakingModule is IStakingModule, IEIP4626, ERC165Upgradeable, ERC20Perm
             withdrawnShares += scheduledWithdrawal.withdrawnShares;
         }
 
+        Schedulers.assertUint120(withdrawnShares);
+        Schedulers.assertUint120(scheduledAssets);
+
         // Update scheduled deposit
         scheduledWithdrawals[receiver] = Schedulers.ScheduledWithdrawal({
             updatedAtEpoch: _getEpochId(),
-            withdrawnShares: withdrawnShares,
-            scheduledAssets: scheduledAssets
+            withdrawnShares: uint120(withdrawnShares),
+            scheduledAssets: uint120(scheduledAssets)
         });
+
+        // Transfer shares in
+        _transfer(owner, address(this), shares);
 
         emit ScheduledWithdrawal(msg.sender, receiver, owner, shares);
     }
@@ -489,7 +499,7 @@ contract StakingModule is IStakingModule, IEIP4626, ERC165Upgradeable, ERC20Perm
         // Update scheduled withdrawal with subtracted shares
         scheduledWithdrawals[msg.sender] = Schedulers.ScheduledWithdrawal({
             updatedAtEpoch: _getEpochId(),
-            withdrawnShares: scheduledWithdrawal.withdrawnShares - shares,
+            withdrawnShares: uint120(scheduledWithdrawal.withdrawnShares - shares),
             scheduledAssets: scheduledWithdrawal.scheduledAssets
         });
 
@@ -530,11 +540,14 @@ contract StakingModule is IStakingModule, IEIP4626, ERC165Upgradeable, ERC20Perm
             withdrawnShares = 0;
         }
 
+        Schedulers.assertUint120(withdrawnShares);
+        Schedulers.assertUint120(scheduledAssets);
+
         // Update scheduled withdrawal with subtracted assets
         scheduledWithdrawals[msg.sender] = Schedulers.ScheduledWithdrawal({
             updatedAtEpoch: _getEpochId(),
-            withdrawnShares: withdrawnShares,
-            scheduledAssets: scheduledAssets - assets
+            withdrawnShares: uint120(withdrawnShares),
+            scheduledAssets: uint120(scheduledAssets - assets)
         });
 
         // Transfer tokens out
@@ -567,7 +580,7 @@ contract StakingModule is IStakingModule, IEIP4626, ERC165Upgradeable, ERC20Perm
         _burn(owner, shares);
 
         // Trigger Accounting Module
-        getRegistryModule().getRegistryAddresses().accountingModule.changeTotalLiquidity(underlingLiquidity, false);
+        _registryModule.getRegistryAddresses().accountingModule.changeTotalLiquidity(underlingLiquidity, false);
 
         address underlying = address(_getUnderlying());
         address previousToken;
@@ -578,21 +591,24 @@ contract StakingModule is IStakingModule, IEIP4626, ERC165Upgradeable, ERC20Perm
             require(
                 (
                     tokens[i] == underlying ||
-                    getRegistryModule().getRegistryAddresses().accountingModule.hasPosition(tokens[i])
+                    _registryModule.getRegistryAddresses().accountingModule.hasPosition(tokens[i])
                 ), "S6");
             // Check of there are no duplicates in the tokens array
             require(
                 tokens[i] > previousToken,
                 "S7"
             );
-            // Get the Vault's balance of the requested token 
-            vaultTokenBalance = IERC20MetadataUpgradeable(tokens[i]).balanceOf(getRegistryModule().avatar());
+            // Get the Vault's balance of the requested token
+            // If requested token is underlying, get the available liquidity from Accounting Module
+            vaultTokenBalance = tokens[i] == underlying
+                ? _registryModule.getRegistryAddresses().accountingModule.getAvailableLiquidity()
+                : IERC20MetadataUpgradeable(tokens[i]).balanceOf(_registryModule.avatar());
             // Calculate users share of the Vault's balance
             transferAmount = vaultTokenBalance * shares / cachedTotalSupply;
 
             // Transfer tokens from vault
-            bytes memory data = abi.encodeWithSelector(bytes4(keccak256(bytes("transfer(address,uint256)"))), receiver, transferAmount);
-            getRegistryModule().executeOnVault(tokens[i], data);
+            bytes memory data = abi.encodeWithSelector(Selectors.ERC20_TRANSFER, receiver, transferAmount);
+            _registryModule.executeOnVault(tokens[i], data);
 
             // Write current token as previous
             previousToken = tokens[i];
@@ -607,7 +623,7 @@ contract StakingModule is IStakingModule, IEIP4626, ERC165Upgradeable, ERC20Perm
         // Only Lifecycle Module
         require(
             msg.sender == address(
-                getRegistryModule()
+                _registryModule
                     .getRegistryAddresses()
                     .lifecycleModule
             ),
@@ -629,38 +645,42 @@ contract StakingModule is IStakingModule, IEIP4626, ERC165Upgradeable, ERC20Perm
             _burn(address(this), totalScheduledWithdrawals - sharesToMint);
         }
 
-        // If the total scheduled deposits exceeds assets to withdraw, then we only need to transfer assets to the vault, otherwise we need to transfer assets out of the vault
-        if (totalScheduledDeposits > assetsToWithdraw) {
-            // Transfer tokens to vault
-            _getUnderlying().safeTransfer(getRegistryModule().avatar(), totalScheduledDeposits - assetsToWithdraw);
-            // Trigger Accounting Module
-            getRegistryModule().getRegistryAddresses().accountingModule.changeTotalLiquidity(totalScheduledDeposits - assetsToWithdraw, true);
-        } else {
-            // Transfer tokens from vault
-            bytes memory data = abi.encodeWithSelector(bytes4(keccak256(bytes("transfer(address,uint256)"))), address(this), assetsToWithdraw - totalScheduledDeposits);
-            getRegistryModule().executeOnVault(address(_getUnderlying()), data);
-            // Trigger Accounting Module
-            getRegistryModule().getRegistryAddresses().accountingModule.changeTotalLiquidity(assetsToWithdraw - totalScheduledDeposits, false);
-        }
-
         // Clear total scheduled deposits and withdrawals
+        uint256 depositedAssets = totalScheduledDeposits;
+        uint256 burntShares = totalScheduledWithdrawals;
         totalScheduledDeposits = 0;
         totalScheduledWithdrawals = 0;
+
+        // If the total scheduled deposits exceeds assets to withdraw, then we only need to transfer assets to the vault, otherwise we need to transfer assets out of the vault
+        if (depositedAssets > assetsToWithdraw) {
+            // Trigger Accounting Module
+            _registryModule.getRegistryAddresses().accountingModule.changeTotalLiquidity(depositedAssets - assetsToWithdraw, true);
+            // Transfer tokens to vault
+            _getUnderlying().safeTransfer(_registryModule.avatar(), depositedAssets - assetsToWithdraw);
+        } else {
+            // Trigger Accounting Module
+            _registryModule.getRegistryAddresses().accountingModule.changeTotalLiquidity(assetsToWithdraw - depositedAssets, false);
+            // Transfer tokens from vault
+            bytes memory data = abi.encodeWithSelector(Selectors.ERC20_TRANSFER, address(this), assetsToWithdraw - depositedAssets);
+            _registryModule.executeOnVault(address(_getUnderlying()), data);
+        }
+
+        emit ProcessedScheduled(depositedAssets, sharesToMint, burntShares, assetsToWithdraw);
     }
 
     /* PRIVATE -> GETTERS */
     /// @notice Returns and underlying ERC20 asset insance
     function _getUnderlying() private view returns (IERC20MetadataUpgradeable) {
-        return getRegistryModule()
+        return _registryModule
             .getRegistryAddresses()
             .accountingModule
             .getUnderlying();
     }
 
     /// @notice Returns current epoch ID (number)
-    function _getEpochId() private view returns (uint256) {
+    function _getEpochId() private view returns (uint16) {
         return ILifecycleModule(
-            getRegistryModule()
+            _registryModule
                 .getRegistryAddresses()
                 .lifecycleModule
         ).getEpochId();

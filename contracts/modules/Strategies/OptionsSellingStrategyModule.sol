@@ -14,6 +14,14 @@ import "../../base/RegistryManager.sol";
 
 import "../../interfaces/IStrategyModule.sol";
 
+import "../../utils/Selectors.sol";
+
+library OpiumSelectors {
+  bytes4 internal constant OPIUM_PROTOCOL_CREATE_AND_MINT = bytes4(keccak256(bytes("createAndMint((uint256,uint256,uint256[],address,address,address),uint256,address[2])")));
+  bytes4 internal constant OPIUM_PROTOCOL_REDEEM = bytes4(keccak256(bytes("redeem(address[],uint256)")));
+  bytes4 internal constant OPIUM_PROTOCOL_EXECUTE = bytes4(keccak256(bytes("execute(address,uint256)")));
+}
+
 /**
   @notice OptionsSellingStrategyModule allows:
     - advisors to mint desired derivatives using Vault's assets, set up premiums for minted positions
@@ -68,7 +76,7 @@ contract OptionsSellingStrategyModule is IStrategyModule, RegistryManager, Acces
   /// @notice Restricts access to function to be callable only when Trading Phase is active
   modifier canTrade() {
     require(
-      getRegistryModule()
+      _registryModule
         .getRegistryAddresses()
         .lifecycleModule
         .canTrade(),
@@ -80,7 +88,7 @@ contract OptionsSellingStrategyModule is IStrategyModule, RegistryManager, Acces
   /// @notice Restricts access to function to be callable only when Rebalancing is available
   modifier canRebalance() {
     require(
-      getRegistryModule()
+      _registryModule
         .getRegistryAddresses()
         .lifecycleModule
         .canRebalance(),
@@ -110,7 +118,7 @@ contract OptionsSellingStrategyModule is IStrategyModule, RegistryManager, Acces
   /// @param derivative_ provided derivative to mint
   function getAvailableQuantity(IOpiumCore.Derivative memory derivative_) public view returns (uint256 availableQuantity, uint256 requiredMargin) {
     // Get available liquidity
-    uint256 availableLiquidity = getRegistryModule().getRegistryAddresses().accountingModule.getAvailableLiquidity();
+    uint256 availableLiquidity = _registryModule.getRegistryAddresses().accountingModule.getAvailableLiquidity();
     // Get required margin per contract
     uint256[2] memory margins;
     (margins[0], margins[1]) = IOpiumDerivativeLogic(derivative_.syntheticId).getMargin(derivative_);
@@ -128,7 +136,7 @@ contract OptionsSellingStrategyModule is IStrategyModule, RegistryManager, Acces
   /// @param derivative_ provided derivative to mint
   function mintPositions(IOpiumCore.Derivative memory derivative_) external canTrade onlyRole(ADVISOR_ROLE) {
     // Get the Lifecycle Module instance
-    ILifecycleModule lifecycleModule = getRegistryModule().getRegistryAddresses().lifecycleModule;
+    ILifecycleModule lifecycleModule = _registryModule.getRegistryAddresses().lifecycleModule;
     // Check that the provided derivative's end time doesn't exceed the current epoch's end
     require(lifecycleModule.getCurrentEpochEnd() >= derivative_.endTime, "OSSM3");
     // Get available quantity and required margin
@@ -136,26 +144,26 @@ contract OptionsSellingStrategyModule is IStrategyModule, RegistryManager, Acces
 
     // Approve margin to TokenSpender to create positions
     bytes memory data = abi.encodeWithSelector(
-      bytes4(keccak256(bytes("approve(address,uint256)"))),
+      Selectors.ERC20_APPROVE,
       _opiumRegistry.getProtocolAddresses().tokenSpender,
       requiredMargin
     );
-    getRegistryModule().executeOnVault(derivative_.token, data);
+    _registryModule.executeOnVault(derivative_.token, data);
 
     // Create positions
     data = abi.encodeWithSelector(
-      bytes4(keccak256(bytes("createAndMint((uint256,uint256,uint256[],address,address,address),uint256,address[2])"))),
+      OpiumSelectors.OPIUM_PROTOCOL_CREATE_AND_MINT,
       derivative_,
       availableQuantity,
-      [getRegistryModule().avatar(),getRegistryModule().avatar()]
+      [_registryModule.avatar(),_registryModule.avatar()]
     );
-    getRegistryModule().executeOnVault(_opiumRegistry.getProtocolAddresses().core, data);
+    _registryModule.executeOnVault(_opiumRegistry.getProtocolAddresses().core, data);
 
     // Calculate addresses of the LONG and SHORT positions
     (address longPositionAddress, address shortPositionAddress) = _opiumLens.predictPositionsAddressesByDerivative(derivative_);
 
     // Get the instance of the Accounting Module
-    IAccountingModule accountingModule = getRegistryModule().getRegistryAddresses().accountingModule;
+    IAccountingModule accountingModule = _registryModule.getRegistryAddresses().accountingModule;
 
     // Notify Accounting Module of the new positions
     accountingModule.changeHoldingPosition(longPositionAddress, true);
@@ -175,7 +183,7 @@ contract OptionsSellingStrategyModule is IStrategyModule, RegistryManager, Acces
   /// @param maxPremium_ Maximum premium per position that purchaser is willing to pay
   function purchasePosition(address position_, uint256 quantity_, uint256 maxPremium_) external canTrade {
     // Get Accounting Module instance
-    IAccountingModule accountingModule = getRegistryModule().getRegistryAddresses().accountingModule;
+    IAccountingModule accountingModule = _registryModule.getRegistryAddresses().accountingModule;
 
     // Check that the premium for given position was set and doesn't exceed the maximum premium provided by purchaser
     require(
@@ -185,10 +193,10 @@ contract OptionsSellingStrategyModule is IStrategyModule, RegistryManager, Acces
     );
 
     // Transfer premium in
-    accountingModule.getUnderlying().safeTransferFrom(msg.sender, getRegistryModule().avatar(), quantity_ * _premiums[position_] / BASE);
+    accountingModule.getUnderlying().safeTransferFrom(msg.sender, _registryModule.avatar(), quantity_ * _premiums[position_] / BASE);
     // Transfer positions out
-    bytes memory data = abi.encodeWithSelector(bytes4(keccak256(bytes("transfer(address,uint256)"))), msg.sender, quantity_);
-    getRegistryModule().executeOnVault(position_, data);
+    bytes memory data = abi.encodeWithSelector(Selectors.ERC20_TRANSFER, msg.sender, quantity_);
+    _registryModule.executeOnVault(position_, data);
   }
 
   /// @notice Allows to execute all the positions remaining in the Vault when can Rebalance
@@ -196,9 +204,9 @@ contract OptionsSellingStrategyModule is IStrategyModule, RegistryManager, Acces
     // Calculate LONG + SHORT positions addresses
     (address longPositionAddress, address shortPositionAddress) = _opiumLens.predictPositionsAddressesByDerivative(derivative_);
     // Get the Vault balance of the LONG position
-    uint256 longPositionBalance = IERC20MetadataUpgradeable(longPositionAddress).balanceOf(getRegistryModule().avatar());
+    uint256 longPositionBalance = IERC20MetadataUpgradeable(longPositionAddress).balanceOf(_registryModule.avatar());
     // Get the Vault balance of the SHORT position
-    uint256 shortPositionBalance = IERC20MetadataUpgradeable(shortPositionAddress).balanceOf(getRegistryModule().avatar());
+    uint256 shortPositionBalance = IERC20MetadataUpgradeable(shortPositionAddress).balanceOf(_registryModule.avatar());
 
     // Check if positions redemption is possible (meaning Vault holds both LONG and SHORT positions)
     if (longPositionBalance != 0 && shortPositionBalance != 0) {
@@ -206,8 +214,8 @@ contract OptionsSellingStrategyModule is IStrategyModule, RegistryManager, Acces
       uint256 redeemPositions = longPositionBalance > shortPositionBalance ? shortPositionBalance : longPositionBalance;
 
       // Redeem positions
-      bytes memory data = abi.encodeWithSelector(bytes4(keccak256(bytes("redeem(address[],uint256)"))), [longPositionAddress,shortPositionAddress], redeemPositions);
-      getRegistryModule().executeOnVault(_opiumRegistry.getProtocolAddresses().core, data);
+      bytes memory data = abi.encodeWithSelector(OpiumSelectors.OPIUM_PROTOCOL_REDEEM, [longPositionAddress,shortPositionAddress], redeemPositions);
+      _registryModule.executeOnVault(_opiumRegistry.getProtocolAddresses().core, data);
 
       longPositionBalance -= redeemPositions;
       shortPositionBalance -= redeemPositions;
@@ -215,18 +223,18 @@ contract OptionsSellingStrategyModule is IStrategyModule, RegistryManager, Acces
 
     // If any amount of LONG position remains, execute separately
     if (longPositionBalance > 0) {
-      bytes memory data = abi.encodeWithSelector(bytes4(keccak256(bytes("execute(address,uint256)"))), longPositionAddress, longPositionBalance);
-      getRegistryModule().executeOnVault(_opiumRegistry.getProtocolAddresses().core, data);
+      bytes memory data = abi.encodeWithSelector(OpiumSelectors.OPIUM_PROTOCOL_EXECUTE, longPositionAddress, longPositionBalance);
+      _registryModule.executeOnVault(_opiumRegistry.getProtocolAddresses().core, data);
     }
 
     // If any amount of SHORT position remains, execute separately
     if (shortPositionBalance > 0) {
-      bytes memory data = abi.encodeWithSelector(bytes4(keccak256(bytes("execute(address,uint256)"))), shortPositionAddress, shortPositionBalance);
-      getRegistryModule().executeOnVault(_opiumRegistry.getProtocolAddresses().core, data);
+      bytes memory data = abi.encodeWithSelector(OpiumSelectors.OPIUM_PROTOCOL_EXECUTE, shortPositionAddress, shortPositionBalance);
+      _registryModule.executeOnVault(_opiumRegistry.getProtocolAddresses().core, data);
     }
 
     // Get Accounting Module instance
-    IAccountingModule accountingModule = getRegistryModule().getRegistryAddresses().accountingModule;
+    IAccountingModule accountingModule = _registryModule.getRegistryAddresses().accountingModule;
 
     // Notify Accounting Module of the cleared positions
     accountingModule.changeHoldingPosition(longPositionAddress, false);
@@ -235,7 +243,7 @@ contract OptionsSellingStrategyModule is IStrategyModule, RegistryManager, Acces
 
   /// @notice Trigger Accounting Module to start rebalancing process only when Rebalancing is possible
   function rebalance() external canRebalance {
-    getRegistryModule().getRegistryAddresses().accountingModule.rebalance();
+    _registryModule.getRegistryAddresses().accountingModule.rebalance();
   }
 
   // Private setters

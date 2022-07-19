@@ -10,6 +10,7 @@ interface IStakingModule {
   event AssetsClaimed(address indexed owner, uint256 assets);
   event RageQuit(address indexed caller, address indexed receiver, address indexed owner, uint256 shares);
   event Referral(uint256 indexed id);
+  event ProcessedScheduled(uint256 depositedAssets, uint256 mintedShares, uint256 burntShares, uint256 withdrawnAssets);
 
   function canDeposit() external view returns (bool);
   function canWithdraw() external view returns (bool);

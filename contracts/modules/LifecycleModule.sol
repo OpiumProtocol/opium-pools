@@ -23,7 +23,7 @@ contract LifecycleModule is ILifecycleModule, RegistryManager {
     uint256 public constant TIME_DELTA = 10;
 
     /// @notice Holds the value of the current epoch id (number)
-    uint256 private _epochId;
+    uint16 private _epochId;
     /// @notice Hold the value of the epoch length
     uint256 private _epochLength;
     /// @notice Hold the value of the Staking Phase length
@@ -52,13 +52,15 @@ contract LifecycleModule is ILifecycleModule, RegistryManager {
         _setCurrentEpochStart(currentEpochStart_);
         // Set lengths
         _setLengths(lengths_);
+
+        emit EpochStarted(0, _currentEpochStart);
     }
 
     /// @notice Restricts access to function to Accounting Module only
     modifier onlyAccountingModule() {
         require(
             msg.sender == address(
-                getRegistryModule()
+                _registryModule
                     .getRegistryAddresses()
                     .accountingModule
             ),
@@ -69,7 +71,7 @@ contract LifecycleModule is ILifecycleModule, RegistryManager {
 
     // External getters
     /// @notice Returns current epoch ID (number)
-    function getEpochId() override external view returns (uint256) {
+    function getEpochId() override external view returns (uint16) {
         return _epochId;
     }
 
@@ -154,8 +156,11 @@ contract LifecycleModule is ILifecycleModule, RegistryManager {
         _setCurrentEpochStart(_currentEpochStart + _epochLength);
         // Increment epoch ID (number)
         _epochId++;
+
+        emit EpochStarted(_epochId, _currentEpochStart);
+
         // Trigger post rebalancing function on Staking Module
-        IStakingModule(getRegistryModule().getRegistryAddresses().stakingModule).postRebalancing();
+        IStakingModule(_registryModule.getRegistryAddresses().stakingModule).postRebalancing();
     }
 
     // Private setters

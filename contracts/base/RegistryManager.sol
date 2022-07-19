@@ -12,6 +12,8 @@ import "../interfaces/IRegistryModule.sol";
         - RM1 = Incorrect input
  */
 abstract contract RegistryManager is ReentrancyGuardUpgradeable, OwnableUpgradeable {
+    event RegistryModuleSet(address indexed previousAddress, address indexed newAddress);
+
     IRegistryAndZodiacModule internal _registryModule;
     
     /// @notice Chained initializer
@@ -36,14 +38,12 @@ abstract contract RegistryManager is ReentrancyGuardUpgradeable, OwnableUpgradea
         transferOwnership(owner_);
     }
 
-    // Public getters
-
+    // External setters
     /// @notice Returns Registry Module instance
-    function getRegistryModule() public view returns (IRegistryAndZodiacModule) {
+    function getRegistryModule() external view returns (IRegistryAndZodiacModule) {
         return _registryModule;
     }
 
-    // External setters
     /// @notice Changes Registry Module instance
     /// @param registryModule_ new address / instance of the Registry Module
     function setRegistryModule(IRegistryAndZodiacModule registryModule_) external onlyOwner {
@@ -56,6 +56,10 @@ abstract contract RegistryManager is ReentrancyGuardUpgradeable, OwnableUpgradea
     function _setRegistryModule(IRegistryAndZodiacModule registryModule_) private nonReentrant {
         // Check if not a zero address
         require(address(registryModule_) != address(0), "RM1");
+        
+        address previousAddress = address(_registryModule);
         _registryModule = registryModule_;
+        
+        emit RegistryModuleSet(previousAddress, address(_registryModule));
     }
 }
