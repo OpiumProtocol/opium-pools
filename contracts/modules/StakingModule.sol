@@ -262,7 +262,7 @@ contract StakingModule is IStakingModule, IEIP4626, ERC165Upgradeable, ERC20Perm
     /// @notice Performs mint with a referral link
     /// @dev see {this.mint}
     /// @param referralId unique id of the referral
-    function mintRef(uint256 shares, address receiver, uint256 referralId) override public returns (uint256 assets) {
+    function mintRef(uint256 shares, address receiver, uint256 referralId) override external returns (uint256 assets) {
         assets = mint(shares, receiver);
         emit Referral(referralId);
     }
