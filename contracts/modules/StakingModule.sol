@@ -329,9 +329,6 @@ contract StakingModule is IStakingModule, IEIP4626, ERC165Upgradeable, ERC20Perm
             return deposit(assets, receiver);
         }
 
-        // Transfer tokens in
-        _getUnderlying().safeTransferFrom(msg.sender, address(this), assets);
-
         // Get scheduled deposit instance
         Schedulers.ScheduledDeposit memory scheduledDeposit = scheduledDeposits[receiver];
 
@@ -357,6 +354,9 @@ contract StakingModule is IStakingModule, IEIP4626, ERC165Upgradeable, ERC20Perm
 
         // Update total scheduled deposits with assets
         totalScheduledDeposits += assets;
+
+        // Transfer tokens in
+        _getUnderlying().safeTransferFrom(msg.sender, address(this), assets);
 
         emit ScheduledDeposit(msg.sender, receiver, assets);
     }
@@ -455,9 +455,6 @@ contract StakingModule is IStakingModule, IEIP4626, ERC165Upgradeable, ERC20Perm
             }
         }
 
-        // Transfer shares in
-        _transfer(owner, address(this), shares);
-
         // Update total scheduled withdrawals with shares
         totalScheduledWithdrawals += shares;
 
@@ -483,6 +480,9 @@ contract StakingModule is IStakingModule, IEIP4626, ERC165Upgradeable, ERC20Perm
             withdrawnShares: uint120(withdrawnShares),
             scheduledAssets: uint120(scheduledAssets)
         });
+
+        // Transfer shares in
+        _transfer(owner, address(this), shares);
 
         emit ScheduledWithdrawal(msg.sender, receiver, owner, shares);
     }
@@ -645,25 +645,25 @@ contract StakingModule is IStakingModule, IEIP4626, ERC165Upgradeable, ERC20Perm
             _burn(address(this), totalScheduledWithdrawals - sharesToMint);
         }
 
-        // If the total scheduled deposits exceeds assets to withdraw, then we only need to transfer assets to the vault, otherwise we need to transfer assets out of the vault
-        if (totalScheduledDeposits > assetsToWithdraw) {
-            // Transfer tokens to vault
-            _getUnderlying().safeTransfer(_registryModule.avatar(), totalScheduledDeposits - assetsToWithdraw);
-            // Trigger Accounting Module
-            _registryModule.getRegistryAddresses().accountingModule.changeTotalLiquidity(totalScheduledDeposits - assetsToWithdraw, true);
-        } else {
-            // Transfer tokens from vault
-            bytes memory data = abi.encodeWithSelector(Selectors.ERC20_TRANSFER, address(this), assetsToWithdraw - totalScheduledDeposits);
-            _registryModule.executeOnVault(address(_getUnderlying()), data);
-            // Trigger Accounting Module
-            _registryModule.getRegistryAddresses().accountingModule.changeTotalLiquidity(assetsToWithdraw - totalScheduledDeposits, false);
-        }
-
         // Clear total scheduled deposits and withdrawals
         uint256 depositedAssets = totalScheduledDeposits;
         uint256 burntShares = totalScheduledWithdrawals;
         totalScheduledDeposits = 0;
         totalScheduledWithdrawals = 0;
+
+        // If the total scheduled deposits exceeds assets to withdraw, then we only need to transfer assets to the vault, otherwise we need to transfer assets out of the vault
+        if (depositedAssets > assetsToWithdraw) {
+            // Trigger Accounting Module
+            _registryModule.getRegistryAddresses().accountingModule.changeTotalLiquidity(depositedAssets - assetsToWithdraw, true);
+            // Transfer tokens to vault
+            _getUnderlying().safeTransfer(_registryModule.avatar(), depositedAssets - assetsToWithdraw);
+        } else {
+            // Trigger Accounting Module
+            _registryModule.getRegistryAddresses().accountingModule.changeTotalLiquidity(assetsToWithdraw - depositedAssets, false);
+            // Transfer tokens from vault
+            bytes memory data = abi.encodeWithSelector(Selectors.ERC20_TRANSFER, address(this), assetsToWithdraw - depositedAssets);
+            _registryModule.executeOnVault(address(_getUnderlying()), data);
+        }
 
         emit ProcessedScheduled(depositedAssets, sharesToMint, burntShares, assetsToWithdraw);
     }
