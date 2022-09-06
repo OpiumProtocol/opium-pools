@@ -1,5 +1,6 @@
 {
-  "name": "hardhat-project",
+  "name": "opium-pools-v2",
+  "version": "2.0.0",
   "scripts": {
     "compile": "npx hardhat compile",
     "test": "npx hardhat test"
