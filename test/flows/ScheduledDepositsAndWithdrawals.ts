@@ -763,19 +763,3 @@ describe("ScheduledDepositsAndWithdrawals", function () {
     );
   });
 });
-
-
-// it("should return Staking data", async () => {
-//   const {
-//     pendingStake,
-//     pendingWithdrawal,
-//     userStaked,
-//     claimableAssets,
-//     claimableShares,
-//   } = struct(
-//     await poolsLens.getStakingData(
-//       stakingModule.address,
-//       lifecycleModule.address
-//     )
-//   );
-// });
