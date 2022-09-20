@@ -9,6 +9,7 @@ import {
   AccountingModule,
   MockToken,
   GnosisSafeL2,
+  PoolsLens,
 } from "../../typechain";
 
 import {
@@ -52,6 +53,7 @@ describe("LifecycleModule", function () {
   let stakingModule: StakingModule;
   let mockToken: MockToken;
   let gnosisSafe: GnosisSafeL2;
+  let poolsLens: PoolsLens;
 
   let snapshotId: any;
 
@@ -141,6 +143,11 @@ describe("LifecycleModule", function () {
     );
 
     await enableModule(gnosisSafe, registryModule.address, deployer);
+
+    // Deploy Lens Contract
+    const PoolsLens = await ethers.getContractFactory("PoolsLens");
+    poolsLens = <PoolsLens>await upgrades.deployProxy(PoolsLens);
+    await poolsLens.deployed();
   });
 
   after(async () => {
@@ -230,6 +237,27 @@ describe("LifecycleModule", function () {
     expect(canTrade).to.be.equal(true);
     const canRebalance = await lifecycleModule.canRebalance();
     expect(canRebalance).to.be.equal(false);
+  });
+
+  it("should return Lifecycle data from Lens", async () => {
+    const {
+      currentEpochTimestamp,
+      currentEpochStarted,
+      phasesLength,
+      isStakingPhase,
+      isTradingPhase,
+      isIdlePhase,
+    } = await poolsLens.getLifecycleData(lifecycleModule.address);
+    expect(currentEpochTimestamp).to.equal(currentEpochStart + EPOCH_LENGTH);
+    expect(currentEpochStarted).to.equal(currentEpochStart);
+    expect(phasesLength[0]).to.equal(STAKING_LENGTH);
+    expect(phasesLength[1]).to.equal(TRADING_LENGTH);
+    expect(phasesLength[2]).to.equal(
+      EPOCH_LENGTH - STAKING_LENGTH - TRADING_LENGTH
+    );
+    expect(isStakingPhase).to.equal(false);
+    expect(isTradingPhase).to.equal(true);
+    expect(isIdlePhase).to.equal(false);
   });
 
   it("should correctly behave in E1:I phase", async function () {

@@ -62,19 +62,20 @@ contract PoolsLens {
   /// @notice Retruns usable data from Staking module
   /// @param _stakingAddress address of Staking module
   /// @param _lifecycleAddress address of Staking module
-  function getStakingData(address _stakingAddress, address _lifecycleAddress) external view returns (StakingDataStruct memory) {
+  /// @param _userAddress address of user
+  function getStakingData(address _stakingAddress, address _lifecycleAddress, address _userAddress) external view returns (StakingDataStruct memory) {
     IStakingWrapper stakingModule = IStakingWrapper(_stakingAddress);
     ILifecycleModule lifecycleModule = ILifecycleModule(_lifecycleAddress);
     
-    uint256 pendingStake = lifecycleModule.getEpochId() == stakingModule.scheduledDeposits(msg.sender).updatedAtEpoch  ? stakingModule.scheduledDeposits(msg.sender).depositedAssets : 0;
-    uint256 pendingWithdrawal = lifecycleModule.getEpochId() == stakingModule.scheduledWithdrawals(msg.sender).updatedAtEpoch  ? stakingModule.scheduledWithdrawals(msg.sender).withdrawnShares : 0;
+    uint256 pendingStake = lifecycleModule.getEpochId() == stakingModule.scheduledDeposits(_userAddress).updatedAtEpoch  ? stakingModule.scheduledDeposits(_userAddress).depositedAssets : 0;
+    uint256 pendingWithdrawal = lifecycleModule.getEpochId() == stakingModule.scheduledWithdrawals(_userAddress).updatedAtEpoch  ? stakingModule.scheduledWithdrawals(_userAddress).withdrawnShares : 0;
     
     return StakingDataStruct(
       pendingStake,
       pendingWithdrawal,
-      stakingModule.balanceOf(msg.sender),
-      stakingModule.getScheduledAssets(msg.sender),
-      stakingModule.getScheduledShares(msg.sender)
+      stakingModule.balanceOf(_userAddress),
+      stakingModule.getScheduledAssets(_userAddress),
+      stakingModule.getScheduledShares(_userAddress)
     );
   }
 

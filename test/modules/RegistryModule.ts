@@ -1,6 +1,6 @@
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import { expect } from "chai";
-import { ethers, upgrades } from "hardhat";
+import { ethers } from "hardhat";
 import { AbiCoder } from "ethers/lib/utils";
 
 import {
@@ -11,10 +11,9 @@ import {
   deployRegistryModuleSingleton,
   deployModuleProxyFactory,
   deployRegistryModule,
-  struct,
 } from "../mixins";
 
-import { RegistryModule, PoolsLens } from "./../../typechain/";
+import { RegistryModule } from "./../../typechain/";
 
 describe("RegistryModule", function () {
   let registryModuleSingleton: RegistryModule;
@@ -25,8 +24,6 @@ describe("RegistryModule", function () {
   let stakingModule: SignerWithAddress;
   let strategyModule: SignerWithAddress;
   let newOwner: SignerWithAddress;
-  let poolsLens: PoolsLens;
-
 
   before(async () => {
     [
@@ -46,11 +43,6 @@ describe("RegistryModule", function () {
       moduleProxyFactory,
       deployer.address
     );
-
-    // Deploy Lens Contract
-    const PoolsLens = await ethers.getContractFactory("PoolsLens");
-    poolsLens = <PoolsLens>await upgrades.deployProxy(PoolsLens);
-    await poolsLens.deployed();
   });
 
   it("should correctly set registry addresses", async function () {
@@ -191,60 +183,5 @@ describe("RegistryModule", function () {
         ])
       );
     expect(await registryModule.owner()).to.be.equal(newOwner.address);
-  });
-
-
-  // Pools Lens tests
-  it("should receive modules addresses", async () => {
-    const {
-      stakingAddress,
-      accountingAddress,
-      lifecycleAddress,
-      vaultAddress,
-      strategyAddress,
-    } = struct(await poolsLens.getPoolModules(registryModule.address));
-    expect(stakingAddress).to.be.equal(stakingModule.address);
-    expect(accountingAddress).to.be.equal(accountingModule.address);
-    expect(lifecycleAddress).to.be.equal(lifecycleModule.address);
-    expect(vaultAddress).to.be.equal("");
-    expect(strategyAddress).to.be.equal(stakingModule.address);
-  });
-
-  it("should return Accounting data", async () => {
-    const {
-      poolSize,
-      poolUtilization,
-      managementFee,
-      performanceFee,
-      marginDecimals,
-      marginAddress,
-      marginTitle,
-    } = struct(await poolsLens.getAccountingData(accountingModule.address));
-  });
-
-  it("should return Staking data", async () => {
-    const {
-      pendingStake,
-      pendingWithdrawal,
-      userStaked,
-      claimableAssets,
-      claimableShares,
-    } = struct(
-      await poolsLens.getStakingData(
-        stakingModule.address,
-        lifecycleModule.address
-      )
-    );
-  });
-
-  it("should return Lifecycle data", async () => {
-    const {
-      currentEpochTimestamp,
-      currentEpochStarted,
-      phasesLength,
-      isStakingPhase,
-      isTradingPhase,
-      isIdlePhase,
-    } = struct(await poolsLens.getLifecycleData(lifecycleModule.address));
   });
 });
