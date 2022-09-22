@@ -1,7 +1,11 @@
 // SPDX-License-Identifier: agpl-3.0
 pragma solidity ^0.8.0;
 
-interface IStakingModule {
+import "@openzeppelin/contracts-upgradeable/token/ERC20/IERC20Upgradeable.sol";
+import { Schedulers } from "../utils/Schedulers.sol";
+
+
+interface IStakingModule is IERC20Upgradeable {
   event ScheduledDeposit(address indexed caller, address indexed owner, uint256 assets);
   event UnscheduledDeposit(address indexed owner, uint256 assets);
   event SharesClaimed(address indexed owner, uint256 shares);
@@ -28,4 +32,10 @@ interface IStakingModule {
   function claimScheduledAssets(uint256 assets, bool claimAll) external;
   function rageQuit(uint256 shares, address receiver, address owner, address[] calldata tokens) external;
   function postRebalancing() external;
+
+}
+
+interface IStakingWrapper is IStakingModule {
+  function scheduledDeposits(address receiver) external view returns (Schedulers.ScheduledDeposit memory);
+  function scheduledWithdrawals(address receiver) external view returns (Schedulers.ScheduledWithdrawal memory);
 }

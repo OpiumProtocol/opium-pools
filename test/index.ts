@@ -18,9 +18,11 @@ import {
   MockToken,
   GnosisSafeL2,
   StakingModule,
+  RegistryModule,
   OptionsSellingStrategyModule,
   AccountingModule,
   LifecycleModule,
+  PoolsLens,
 } from "./../typechain/";
 
 import {
@@ -52,6 +54,11 @@ describe("E2E Test", function () {
   let mockToken: MockToken;
   let stakingModule: StakingModule;
   let strategyModule: OptionsSellingStrategyModule;
+  let registryModule: RegistryModule;
+  let accountingModule: AccountingModule;
+  let lifecycleModule: LifecycleModule;
+
+  let poolsLens: PoolsLens;
 
   let snapshotId: any;
 
@@ -81,7 +88,7 @@ describe("E2E Test", function () {
     // Deploy Registry Module
     const registryModuleSingleton = await deployRegistryModuleSingleton();
     const moduleProxyFactory = await deployModuleProxyFactory();
-    const registryModule = await deployRegistryModule(
+    registryModule = await deployRegistryModule(
       registryModuleSingleton,
       moduleProxyFactory,
       gnosisSafe.address
@@ -91,7 +98,7 @@ describe("E2E Test", function () {
     const AccountingModule = await ethers.getContractFactory(
       "AccountingModule"
     );
-    const accountingModule = <AccountingModule>(
+    accountingModule = <AccountingModule>(
       await upgrades.deployProxy(AccountingModule, [
         mockToken.address,
         registryModule.address,
@@ -104,7 +111,7 @@ describe("E2E Test", function () {
     const now = await getCurrentTimestamp();
     epochStart = now - 3600; // Now - 1hour
     const LifecycleModule = await ethers.getContractFactory("LifecycleModule");
-    const lifecycleModule = <LifecycleModule>(
+    lifecycleModule = <LifecycleModule>(
       await upgrades.deployProxy(LifecycleModule, [
         epochStart,
         [EPOCH_LENGTH, STAKING_LENGTH, TRADING_LENGTH],
@@ -153,10 +160,32 @@ describe("E2E Test", function () {
     );
 
     await setStrategyAdvisor(gnosisSafe, strategyModule, advisor, deployer);
+
+    // Deploy Lens Contract
+    const PoolsLens = await ethers.getContractFactory("PoolsLens");
+    poolsLens = <PoolsLens>await upgrades.deployProxy(PoolsLens);
+    await poolsLens.deployed();
   });
 
   after(async () => {
     await restoreSnapshot(snapshotId);
+  });
+
+  it("should receive modules addresses", async () => {
+    const {
+      modules: {
+        stakingAddress,
+        accountingAddress,
+        lifecycleAddress,
+        vaultAddress,
+        strategyAddress,
+      },
+    } = await poolsLens.getPoolData(registryModule.address, deployer.address);
+    expect(stakingAddress).to.be.equal(stakingModule.address);
+    expect(accountingAddress).to.be.equal(accountingModule.address);
+    expect(lifecycleAddress).to.be.equal(lifecycleModule.address);
+    expect(vaultAddress).to.be.equal(await registryModule.avatar());
+    expect(strategyAddress).to.be.equal(strategyModule.address);
   });
 
   it("should deposit and withdraw", async function () {
@@ -187,6 +216,38 @@ describe("E2E Test", function () {
     expect(await mockToken.balanceOf(gnosisSafe.address)).to.equal(
       DEPOSIT_AMOUNT
     );
+
+    // Staking Lens
+    const { userStaked } = await poolsLens.getStakingData(
+      stakingModule.address,
+      lifecycleModule.address,
+      staker.address
+    );
+    expect(userStaked).to.equal(DEPOSIT_AMOUNT);
+
+    // Accounting Lens
+    const {
+      accounting: {
+        poolSize,
+        poolUtilization,
+        managementFee,
+        performanceFee,
+        marginDecimals,
+        marginAddress,
+        marginTitle,
+      },
+    } = await poolsLens.getPoolData(registryModule.address, deployer.address);
+    expect(poolSize).to.equal(DEPOSIT_AMOUNT);
+    expect(poolUtilization).to.equal("0");
+    expect(managementFee).to.equal(
+      await accountingModule.getAnnualMaintenanceFee()
+    );
+    expect(performanceFee).to.equal(
+      await accountingModule.getImmediateProfitFee()
+    );
+    expect(marginDecimals).to.equal(await mockToken.decimals());
+    expect(marginAddress).to.equal(mockToken.address);
+    expect(marginTitle).to.equal(await mockToken.symbol());
 
     // Withdraw
     await stakingModule
@@ -254,6 +315,12 @@ describe("E2E Test", function () {
         availableQuantity.availableQuantity,
         PREMIUM
       );
+
+    // Check pool utilization via Accounting Lens
+    const { poolUtilization } = await poolsLens.getAccountingData(
+      accountingModule.address
+    );
+    expect(poolUtilization).to.equal(ethers.utils.parseEther("0.99"));
 
     // Time travel to Next epoch
     await timeTravel(EPOCH_LENGTH - STAKING_LENGTH);

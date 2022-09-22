@@ -22,6 +22,7 @@ import {
   LifecycleModule,
   StakingModule,
   IERC20,
+  PoolsLens,
 } from "../../typechain";
 
 import {
@@ -49,6 +50,8 @@ describe("ScheduledDepositsAndWithdrawals", function () {
   let deployer: SignerWithAddress;
   let strategyModule: SignerWithAddress;
   let depositor: SignerWithAddress;
+  let poolsLens: PoolsLens;
+
 
   let gnosisSafe: GnosisSafeL2;
 
@@ -143,6 +146,11 @@ describe("ScheduledDepositsAndWithdrawals", function () {
     );
 
     await enableModule(gnosisSafe, registryModule.address, deployer);
+
+    // Deploy Lens Contract
+    const PoolsLens = await ethers.getContractFactory("PoolsLens");
+    poolsLens = <PoolsLens>await upgrades.deployProxy(PoolsLens);
+    await poolsLens.deployed();
   });
 
   after(async () => {
@@ -208,12 +216,12 @@ describe("ScheduledDepositsAndWithdrawals", function () {
 
   const assertScheduledDeposit = async (
     deposit: AssertScheduledDeposit,
-    verbose?: string
+    verbose?: string,
+    skip?: boolean
   ) => {
     const scheduledDeposit = await stakingModule.scheduledDeposits(
       depositor.address
     );
-
     if (verbose) {
       console.log(`
         ScheduledDeposit ${verbose}
@@ -240,6 +248,16 @@ describe("ScheduledDepositsAndWithdrawals", function () {
     expect(scheduledDeposit.scheduledShares).to.be.equal(
       deposit.scheduledShares
     );
+
+    if (!skip) {
+      const { pendingStake, claimableShares } = await poolsLens.getStakingData(
+        stakingModule.address,
+        lifecycleModule.address,
+        depositor.address
+      );
+      expect(pendingStake).to.equal(deposit.depositedAssets);
+      expect(claimableShares).to.equal(deposit.scheduledShares);
+    }
   };
 
   type AssertScheduledWithdrawal = {
@@ -250,7 +268,8 @@ describe("ScheduledDepositsAndWithdrawals", function () {
 
   const assertScheduledWithdrawal = async (
     withdrawal: AssertScheduledWithdrawal,
-    verbose?: string
+    verbose?: string,
+    skip?: boolean
   ) => {
     const scheduledWithdrawal = await stakingModule.scheduledWithdrawals(
       depositor.address
@@ -284,6 +303,17 @@ describe("ScheduledDepositsAndWithdrawals", function () {
     expect(scheduledWithdrawal.scheduledAssets).to.be.equal(
       withdrawal.scheduledAssets
     );
+
+    if (!skip) {
+      const { pendingWithdrawal, claimableAssets } =
+        await poolsLens.getStakingData(
+          stakingModule.address,
+          lifecycleModule.address,
+          depositor.address
+        );
+      expect(pendingWithdrawal).to.equal(withdrawal.withdrawnShares);
+      expect(claimableAssets).to.equal(withdrawal.scheduledAssets);
+    }
   };
 
   type AssertTotal = {
@@ -413,11 +443,15 @@ describe("ScheduledDepositsAndWithdrawals", function () {
       .connect(depositor)
       .approve(stakingModule.address, ethers.constants.MaxUint256);
 
-    const assetAll = async (verbose?: string) => {
+    const assetAll = async (verbose?: string, skip?: boolean) => {
       await assertBalances(mockToken, assertTokenBalances, verbose);
       await assertBalances(stakingModule, assertSharesBalances, verbose);
-      await assertScheduledDeposit(assertScheduledDepositValues, verbose);
-      await assertScheduledWithdrawal(assertScheduledWithdrawalValues, verbose);
+      await assertScheduledDeposit(assertScheduledDepositValues, verbose, skip);
+      await assertScheduledWithdrawal(
+        assertScheduledWithdrawalValues,
+        verbose,
+        skip
+      );
       await assertTotal(assertTotalValues, verbose);
     };
 
@@ -484,7 +518,7 @@ describe("ScheduledDepositsAndWithdrawals", function () {
         assertTotalValues.totalScheduledDeposits = ZERO;
         assertTotalValues.totalScheduledWithdrawals = ZERO;
 
-        await assetAll(stage.verbose);
+        await assetAll(stage.verbose, true);
 
         continue;
       }
