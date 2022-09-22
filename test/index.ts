@@ -173,12 +173,14 @@ describe("E2E Test", function () {
 
   it("should receive modules addresses", async () => {
     const {
-      stakingAddress,
-      accountingAddress,
-      lifecycleAddress,
-      vaultAddress,
-      strategyAddress,
-    } = await poolsLens.getPoolModules(registryModule.address);
+      modules: {
+        stakingAddress,
+        accountingAddress,
+        lifecycleAddress,
+        vaultAddress,
+        strategyAddress,
+      },
+    } = await poolsLens.getPoolData(registryModule.address, deployer.address);
     expect(stakingAddress).to.be.equal(stakingModule.address);
     expect(accountingAddress).to.be.equal(accountingModule.address);
     expect(lifecycleAddress).to.be.equal(lifecycleModule.address);
@@ -225,14 +227,16 @@ describe("E2E Test", function () {
 
     // Accounting Lens
     const {
-      poolSize,
-      poolUtilization,
-      managementFee,
-      performanceFee,
-      marginDecimals,
-      marginAddress,
-      marginTitle,
-    } = await poolsLens.getAccountingData(accountingModule.address);
+      accounting: {
+        poolSize,
+        poolUtilization,
+        managementFee,
+        performanceFee,
+        marginDecimals,
+        marginAddress,
+        marginTitle,
+      },
+    } = await poolsLens.getPoolData(registryModule.address, deployer.address);
     expect(poolSize).to.equal(DEPOSIT_AMOUNT);
     expect(poolUtilization).to.equal("0");
     expect(managementFee).to.equal(
@@ -243,7 +247,7 @@ describe("E2E Test", function () {
     );
     expect(marginDecimals).to.equal(await mockToken.decimals());
     expect(marginAddress).to.equal(mockToken.address);
-    expect(marginTitle).to.equal(await mockToken.name());
+    expect(marginTitle).to.equal(await mockToken.symbol());
 
     // Withdraw
     await stakingModule

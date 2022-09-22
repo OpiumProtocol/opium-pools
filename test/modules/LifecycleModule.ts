@@ -241,13 +241,15 @@ describe("LifecycleModule", function () {
 
   it("should return Lifecycle data from Lens", async () => {
     const {
-      currentEpochTimestamp,
-      currentEpochStarted,
-      phasesLength,
-      isStakingPhase,
-      isTradingPhase,
-      isIdlePhase,
-    } = await poolsLens.getLifecycleData(lifecycleModule.address);
+      lifecycle: {
+        currentEpochTimestamp,
+        currentEpochStarted,
+        phasesLength,
+        isStakingPhase,
+        isTradingPhase,
+        isIdlePhase,
+      },
+    } = await poolsLens.getPoolData(registryModule.address, deployer.address);
     expect(currentEpochTimestamp).to.equal(currentEpochStart + EPOCH_LENGTH);
     expect(currentEpochStarted).to.equal(currentEpochStart);
     expect(phasesLength[0]).to.equal(STAKING_LENGTH);

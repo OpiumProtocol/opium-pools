@@ -8,21 +8,27 @@ import "../interfaces/ILifecycleModule.sol";
 
 /// @notice Contract for easy fetching pools data
 contract PoolsLens {
-
-  /// @notice Retruns addresses of modules
-  /// @param _registryAddress address of Registry module
-  function getPoolModules(address _registryAddress) external view returns (
-    address stakingAddress,
-    address accountingAddress,
-    address lifecycleAddress,
-    address vaultAddress,
-    address strategyAddress
-  ) {
-    IRegistryAndZodiacModule registryModule = IRegistryAndZodiacModule(_registryAddress);
-    IRegistryAndZodiacModule.RegistryAddresses memory addresses = registryModule.getRegistryAddresses();
-    return (addresses.stakingModule, address(addresses.accountingModule), address(addresses.lifecycleModule), registryModule.avatar(), addresses.strategyModule);
+  struct ModulesDataStruct {
+    address stakingAddress;
+    address accountingAddress;
+    address lifecycleAddress;
+    address vaultAddress;
+    address strategyAddress;
   }
 
+  /// @notice Returns addresses of modules
+  /// @param _registryAddress address of Registry module
+  function getPoolModules(address _registryAddress) public view returns (ModulesDataStruct memory) {
+    IRegistryAndZodiacModule registryModule = IRegistryAndZodiacModule(_registryAddress);
+    IRegistryAndZodiacModule.RegistryAddresses memory addresses = registryModule.getRegistryAddresses();
+    return ModulesDataStruct(
+      addresses.stakingModule,
+      address(addresses.accountingModule),
+      address(addresses.lifecycleModule),
+      registryModule.avatar(),
+      addresses.strategyModule
+    );
+  }
 
   struct AccountingDataStruct {
     uint256 poolSize;
@@ -34,9 +40,9 @@ contract PoolsLens {
     string marginTitle;
   }
 
-  /// @notice Retruns usable data from Accounting module
+  /// @notice Returns usable data from Accounting module
   /// @param _accountingAddress address of Accounting module
-  function getAccountingData(address _accountingAddress) external view returns (AccountingDataStruct memory) {
+  function getAccountingData(address _accountingAddress) public view returns (AccountingDataStruct memory) {
     IAccountingModule accountingModule = IAccountingModule(_accountingAddress);
     IERC20MetadataUpgradeable token = accountingModule.getUnderlying();
     return AccountingDataStruct(
@@ -46,10 +52,9 @@ contract PoolsLens {
       accountingModule.getImmediateProfitFee(),
       token.decimals(),
       address(token),
-      token.name()
+      token.symbol()
     );
   }
-
 
   struct StakingDataStruct {
     uint256 pendingStake;
@@ -59,11 +64,11 @@ contract PoolsLens {
     uint256 claimableShares;
   }
 
-  /// @notice Retruns usable data from Staking module
+  /// @notice Returns usable data from Staking module
   /// @param _stakingAddress address of Staking module
   /// @param _lifecycleAddress address of Staking module
   /// @param _userAddress address of user
-  function getStakingData(address _stakingAddress, address _lifecycleAddress, address _userAddress) external view returns (StakingDataStruct memory) {
+  function getStakingData(address _stakingAddress, address _lifecycleAddress, address _userAddress) public view returns (StakingDataStruct memory) {
     IStakingWrapper stakingModule = IStakingWrapper(_stakingAddress);
     ILifecycleModule lifecycleModule = ILifecycleModule(_lifecycleAddress);
     
@@ -79,7 +84,6 @@ contract PoolsLens {
     );
   }
 
-
   struct LifecycleDataStruct {
     uint256 currentEpochTimestamp;
     uint256 currentEpochStarted;
@@ -89,9 +93,9 @@ contract PoolsLens {
     bool isIdlePhase;
   }
 
-  /// @notice Retruns usable data from Lifecycle module
+  /// @notice Returns usable data from Lifecycle module
   /// @param _lifecycleAddress address of Lifecycle module
-  function getLifecycleData(address _lifecycleAddress) external view returns (LifecycleDataStruct memory) {
+  function getLifecycleData(address _lifecycleAddress) public view returns (LifecycleDataStruct memory) {
     ILifecycleModule lifecycleModule = ILifecycleModule(_lifecycleAddress);
     return LifecycleDataStruct(
       lifecycleModule.getCurrentEpochEnd(),
@@ -107,5 +111,16 @@ contract PoolsLens {
     );
   }
 
-
+  /// @notice Returns all pool-related and user-based data
+  function getPoolData(address _registryAddress, address _userAddress) external view returns(
+    ModulesDataStruct memory modules,
+    AccountingDataStruct memory accounting,
+    StakingDataStruct memory staking,
+    LifecycleDataStruct memory lifecycle
+  ) {
+    modules = getPoolModules(_registryAddress);
+    accounting = getAccountingData(modules.accountingAddress);
+    staking = getStakingData(modules.stakingAddress, modules.lifecycleAddress, _userAddress);
+    lifecycle = getLifecycleData(modules.lifecycleAddress);
+  }
 }
