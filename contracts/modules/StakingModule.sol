@@ -7,7 +7,6 @@ import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeab
 
 import "../base/RegistryManager.sol";
 
-import "../interfaces/IEIP4626.sol";
 import "../interfaces/IStakingModule.sol";
 import "../interfaces/ILifecycleModule.sol";
 
@@ -33,7 +32,7 @@ import { Schedulers } from "../utils/Schedulers.sol";
         - S8 = nothing was scheduled in the current epoch ID (number)
         - S9 = given amount exceeds available
  */
-contract StakingModule is IStakingModule, IEIP4626, ERC165Upgradeable, ERC20PermitUpgradeable, RegistryManager {
+contract StakingModule is IStakingModule, ERC165Upgradeable, ERC20PermitUpgradeable, RegistryManager {
     using SafeERC20Upgradeable for IERC20MetadataUpgradeable;
     using FixedPointMathLib for uint256;
     using Schedulers for Schedulers.ScheduledDeposit;
