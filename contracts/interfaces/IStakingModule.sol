@@ -3,9 +3,10 @@ pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts-upgradeable/token/ERC20/IERC20Upgradeable.sol";
 import { Schedulers } from "../utils/Schedulers.sol";
+import "./IEIP4626.sol";
 
 
-interface IStakingModule is IERC20Upgradeable {
+interface IStakingModule is IERC20Upgradeable, IEIP4626 {
   event ScheduledDeposit(address indexed caller, address indexed owner, uint256 assets);
   event UnscheduledDeposit(address indexed owner, uint256 assets);
   event SharesClaimed(address indexed owner, uint256 shares);
