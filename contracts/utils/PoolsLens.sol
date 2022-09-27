@@ -62,6 +62,7 @@ contract PoolsLens {
     uint256 userStaked;
     uint256 claimableAssets;
     uint256 claimableShares;
+    uint256 totalSupply;
   }
 
   /// @notice Returns usable data from Staking module
@@ -80,7 +81,8 @@ contract PoolsLens {
       pendingWithdrawal,
       stakingModule.balanceOf(_userAddress),
       stakingModule.getScheduledAssets(_userAddress),
-      stakingModule.getScheduledShares(_userAddress)
+      stakingModule.getScheduledShares(_userAddress),
+      stakingModule.totalSupply()
     );
   }
 
@@ -88,6 +90,7 @@ contract PoolsLens {
     uint256 currentEpochTimestamp;
     uint256 currentEpochStarted;
     uint256[3] phasesLength;
+    uint256 epochLength;
     bool isStakingPhase;
     bool isTradingPhase;
     bool isIdlePhase;
@@ -105,6 +108,7 @@ contract PoolsLens {
         lifecycleModule.getTradingPhaseLength(), 
         lifecycleModule.getEpochLength() - lifecycleModule.getStakingPhaseLength() - lifecycleModule.getTradingPhaseLength()
       ],
+      lifecycleModule.getEpochLength(),
       lifecycleModule.isStakingPhase(),
       lifecycleModule.isTradingPhase(),
       lifecycleModule.isIdlePhase()
