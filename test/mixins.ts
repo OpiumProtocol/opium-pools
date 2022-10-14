@@ -17,7 +17,7 @@ import { decodeLogs } from "./utils/index";
 
 export const deployRegistryModuleSingleton = async () => {
   const RegistryModule = await ethers.getContractFactory("RegistryModule");
-  const registryModule: RegistryModule = await RegistryModule.deploy();
+  const registryModule = (await RegistryModule.deploy()) as RegistryModule;
   await registryModule.deployed();
   return registryModule;
 };
@@ -72,7 +72,7 @@ export const deployRegistryModule = async (
 
 export const deployGnosisSafeSingleton = async () => {
   const GnosisSafe = await ethers.getContractFactory("GnosisSafeL2");
-  const gnosisSafeSingleton: GnosisSafeL2 = await GnosisSafe.deploy();
+  const gnosisSafeSingleton = (await GnosisSafe.deploy()) as GnosisSafeL2;
   await gnosisSafeSingleton.deployed();
   return gnosisSafeSingleton;
 };
@@ -81,8 +81,8 @@ export const deployGnosisSafeFactory = async () => {
   const GnosisSafeProxyFactory = await ethers.getContractFactory(
     "GnosisSafeProxyFactory"
   );
-  const gnosisSafeProxyFactory: GnosisSafeProxyFactory =
-    await GnosisSafeProxyFactory.deploy();
+  const gnosisSafeProxyFactory =
+    (await GnosisSafeProxyFactory.deploy()) as GnosisSafeProxyFactory;
   await gnosisSafeProxyFactory.deployed();
   return gnosisSafeProxyFactory;
 };

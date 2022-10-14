@@ -8,6 +8,7 @@ import "@typechain/hardhat";
 import "hardhat-gas-reporter";
 import "solidity-coverage";
 import "hardhat-dependency-compiler";
+import "hardhat-deploy";
 
 dotenv.config();
 
@@ -39,11 +40,18 @@ const config: HardhatUserConfig = {
       allowUnlimitedContractSize: true,
       forking: {
         url: process.env.ARBITRUM_URL || "",
+        // @ts-ignore
+        ignoreUnknownTxType: true,
       },
       chainId: 42161,
     },
     ropsten: {
       url: process.env.ARBITRUM_URL || "",
+      accounts:
+        process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
+    },
+    polygon: {
+      url: "https://polygon-rpc.com",
       accounts:
         process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
     },
@@ -65,6 +73,9 @@ const config: HardhatUserConfig = {
   mocha: {
     timeout: 120000,
   },
+  // typechain: {
+  //   target: "truffle-v5",
+  // },
 };
 
 export default config;
