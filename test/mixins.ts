@@ -127,7 +127,7 @@ export const deployGnosisSafe = async (
     "0x" + logs[0].data.split("000000000000000000000000")[1];
 
   const deployedSafe = GnosisSafe.attach(deployedSafeAddress);
-  return deployedSafe;
+  return deployedSafe as GnosisSafeL2;
 };
 
 export const enableModule = async (
