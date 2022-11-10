@@ -52,7 +52,6 @@ describe("ScheduledDepositsAndWithdrawals", function () {
   let depositor: SignerWithAddress;
   let poolsLens: PoolsLens;
 
-
   let gnosisSafe: GnosisSafeL2;
 
   let mockToken: MockToken;
@@ -70,10 +69,10 @@ describe("ScheduledDepositsAndWithdrawals", function () {
 
     // Deploy mocks
     const MockToken = await ethers.getContractFactory("MockToken");
-    mockToken = await MockToken.deploy();
+    mockToken = (await MockToken.deploy()) as MockToken;
     await mockToken.deployed();
 
-    mockPosition = await MockToken.deploy();
+    mockPosition = (await MockToken.deploy()) as MockToken;
     await mockPosition.deployed();
 
     // Setup GnosisSafe

@@ -96,11 +96,11 @@ describe("StakingModule", function () {
 
     // Deploy mocks
     const MockToken = await ethers.getContractFactory("MockToken");
-    mockToken = await MockToken.deploy();
+    mockToken = (await MockToken.deploy()) as MockToken;
     await mockToken.deployed();
     await mockToken.transfer(strategyModule.address, PREMIUM_AMOUNT);
 
-    mockPosition = await MockToken.deploy();
+    mockPosition = (await MockToken.deploy()) as MockToken;
     await mockPosition.deployed();
 
     // Setup GnosisSafe

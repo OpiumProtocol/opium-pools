@@ -67,7 +67,7 @@ export const deployRegistryModule = async (
 
   const RegistryModule = await ethers.getContractFactory("RegistryModule");
   const deployedProxy = RegistryModule.attach(deployedProxyAddress);
-  return deployedProxy;
+  return deployedProxy as RegistryModule;
 };
 
 export const deployGnosisSafeSingleton = async () => {
