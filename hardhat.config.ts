@@ -8,6 +8,7 @@ import "@typechain/hardhat";
 import "hardhat-gas-reporter";
 import "solidity-coverage";
 import "hardhat-dependency-compiler";
+import "hardhat-deploy";
 
 dotenv.config();
 
@@ -44,6 +45,11 @@ const config: HardhatUserConfig = {
     },
     ropsten: {
       url: process.env.ARBITRUM_URL || "",
+      accounts:
+        process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
+    },
+    polygon: {
+      url: process.env.POLYGON_URL,
       accounts:
         process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
     },

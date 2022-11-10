@@ -71,7 +71,7 @@ describe("LifecycleModule", function () {
 
     // Deploy mocks
     const MockToken = await ethers.getContractFactory("MockToken");
-    mockToken = await MockToken.deploy();
+    mockToken = (await MockToken.deploy()) as MockToken;
     await mockToken.deployed();
 
     // Setup GnosisSafe

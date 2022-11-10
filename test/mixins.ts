@@ -17,7 +17,7 @@ import { decodeLogs } from "./utils/index";
 
 export const deployRegistryModuleSingleton = async () => {
   const RegistryModule = await ethers.getContractFactory("RegistryModule");
-  const registryModule: RegistryModule = await RegistryModule.deploy();
+  const registryModule = (await RegistryModule.deploy()) as RegistryModule;
   await registryModule.deployed();
   return registryModule;
 };
@@ -67,12 +67,12 @@ export const deployRegistryModule = async (
 
   const RegistryModule = await ethers.getContractFactory("RegistryModule");
   const deployedProxy = RegistryModule.attach(deployedProxyAddress);
-  return deployedProxy;
+  return deployedProxy as RegistryModule;
 };
 
 export const deployGnosisSafeSingleton = async () => {
   const GnosisSafe = await ethers.getContractFactory("GnosisSafeL2");
-  const gnosisSafeSingleton: GnosisSafeL2 = await GnosisSafe.deploy();
+  const gnosisSafeSingleton = (await GnosisSafe.deploy()) as GnosisSafeL2;
   await gnosisSafeSingleton.deployed();
   return gnosisSafeSingleton;
 };
@@ -81,8 +81,8 @@ export const deployGnosisSafeFactory = async () => {
   const GnosisSafeProxyFactory = await ethers.getContractFactory(
     "GnosisSafeProxyFactory"
   );
-  const gnosisSafeProxyFactory: GnosisSafeProxyFactory =
-    await GnosisSafeProxyFactory.deploy();
+  const gnosisSafeProxyFactory =
+    (await GnosisSafeProxyFactory.deploy()) as GnosisSafeProxyFactory;
   await gnosisSafeProxyFactory.deployed();
   return gnosisSafeProxyFactory;
 };
@@ -127,7 +127,7 @@ export const deployGnosisSafe = async (
     "0x" + logs[0].data.split("000000000000000000000000")[1];
 
   const deployedSafe = GnosisSafe.attach(deployedSafeAddress);
-  return deployedSafe;
+  return deployedSafe as GnosisSafeL2;
 };
 
 export const enableModule = async (

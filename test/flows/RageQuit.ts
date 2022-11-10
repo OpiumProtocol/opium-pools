@@ -71,15 +71,15 @@ describe("RageQuit", function () {
 
     // Deploy mocks
     const MockToken = await ethers.getContractFactory("MockToken");
-    mockToken = await MockToken.deploy();
+    mockToken = (await MockToken.deploy()) as MockToken;
     await mockToken.deployed();
     await mockToken.transfer(depositor.address, DEPOSIT_AMOUNT);
 
-    mockPositionOne = await MockToken.deploy();
+    mockPositionOne = (await MockToken.deploy()) as MockToken;
     await mockPositionOne.deployed();
     await mockPositionOne.transfer(strategyModule.address, POSITION_ONE_AMOUNT);
 
-    mockPositionTwo = await MockToken.deploy();
+    mockPositionTwo = (await MockToken.deploy()) as MockToken;
     await mockPositionTwo.deployed();
     await mockPositionTwo.transfer(strategyModule.address, POSITION_TWO_AMOUNT);
 
