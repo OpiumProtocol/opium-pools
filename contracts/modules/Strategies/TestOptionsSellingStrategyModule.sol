@@ -4,11 +4,11 @@ pragma solidity ^0.8.0;
 import "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
 
-import "../../external/opium/IOpiumRegistry.sol";
-import "../../external/opium/IOpiumCore.sol";
-import "../../external/opium/IOpiumDerivativeLogic.sol";
-import "../../external/opium/LibOpiumCalculator.sol";
-import "../../external/opium/IOpiumOnChainPositionsLens.sol";
+import "./libraries/external/opium/IOpiumRegistry.sol";
+import "./libraries/external/opium/IOpiumCore.sol";
+import "./libraries/external/opium/IOpiumDerivativeLogic.sol";
+import "./libraries/external/opium/LibOpiumCalculator.sol";
+import "./libraries/external/opium/IOpiumOnChainPositionsLens.sol";
 
 import "../../base/RegistryManager.sol";
 
@@ -23,7 +23,7 @@ library OpiumSelectors {
 }
 
 /**
-  @notice OptionsSellingStrategyModule allows:
+  @notice TestOptionsSellingStrategyModule allows:
     - advisors to mint desired derivatives using Vault's assets, set up premiums for minted positions
     - anyone to purchase desired positions if the premium is set, execute positions when possible and start the rebalancing process
   Error cores:
@@ -32,7 +32,7 @@ library OpiumSelectors {
     - OSSM3 = Wrong derivative end time
     - OSSM4 = Purchase conditions are not met
  */
-contract OptionsSellingStrategyModule is IStrategyModule, RegistryManager, AccessControlUpgradeable {
+contract TestOptionsSellingStrategyModule is IStrategyModule, RegistryManager, AccessControlUpgradeable {
   using LibOpiumCalculator for uint256;
   using SafeERC20Upgradeable for IERC20MetadataUpgradeable;
 

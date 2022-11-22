@@ -19,7 +19,7 @@ import {
   GnosisSafeL2,
   StakingModule,
   RegistryModule,
-  OptionsSellingStrategyModule,
+  TestOptionsSellingStrategyModule,
   AccountingModule,
   LifecycleModule,
   PoolsLens,
@@ -53,7 +53,7 @@ describe("E2E Test", function () {
   let gnosisSafe: GnosisSafeL2;
   let mockToken: MockToken;
   let stakingModule: StakingModule;
-  let strategyModule: OptionsSellingStrategyModule;
+  let strategyModule: TestOptionsSellingStrategyModule;
   let registryModule: RegistryModule;
   let accountingModule: AccountingModule;
   let lifecycleModule: LifecycleModule;
@@ -134,11 +134,11 @@ describe("E2E Test", function () {
     await stakingModule.deployed();
 
     // Deploy Strategy Module
-    const OptionsSellingStrategyModule = await ethers.getContractFactory(
-      "OptionsSellingStrategyModule"
+    const TestOptionsSellingStrategyModule = await ethers.getContractFactory(
+      "TestOptionsSellingStrategyModule"
     );
-    strategyModule = <OptionsSellingStrategyModule>(
-      await upgrades.deployProxy(OptionsSellingStrategyModule, [
+    strategyModule = <TestOptionsSellingStrategyModule>(
+      await upgrades.deployProxy(TestOptionsSellingStrategyModule, [
         OPIUM_REGISTRY,
         OPIUM_LENS,
         registryModule.address,

@@ -10,7 +10,7 @@ import {
   AccountingModule,
   LifecycleModule,
   StakingModule,
-  OptionsSellingStrategyModule,
+  TestOptionsSellingStrategyModule,
 } from "./../typechain/";
 
 import { decodeLogs } from "./utils/index";
@@ -195,7 +195,7 @@ export const setupRegistry = async (
 
 export const setStrategyAdvisor = async (
   gnosisSafe: GnosisSafeL2,
-  strategyModule: OptionsSellingStrategyModule,
+  strategyModule: TestOptionsSellingStrategyModule,
   advisor: SignerWithAddress,
   owner: SignerWithAddress
 ) => {
