@@ -4,12 +4,6 @@ pragma solidity ^0.8.0;
 import "./OpiumV2EnabledStrategy.sol";
 import "./AdvisableStrategy.sol";
 
-/**
-  @notice BaseStrategy
-  Error cores:
-    - OSS1 = Invalid value
-    - OSS2 = Already minted
- */
 abstract contract OptionsSellingStrategy is OpiumV2EnabledStrategy, AdvisableStrategy {
   IOpiumCore.Derivative public derivative;
 

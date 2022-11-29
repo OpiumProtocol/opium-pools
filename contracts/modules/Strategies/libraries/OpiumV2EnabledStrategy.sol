@@ -6,11 +6,11 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 import "../../../utils/Selectors.sol";
 
-import "./external/opium/IOpiumRegistry.sol";
-import "./external/opium/IOpiumCore.sol";
-import "./external/opium/IOpiumDerivativeLogic.sol";
-import "./external/opium/LibOpiumCalculator.sol";
-import "./external/opium/IOpiumOnChainPositionsLens.sol";
+import "./external/opium-protocol/IOpiumRegistry.sol";
+import "./external/opium-protocol/IOpiumCore.sol";
+import "./external/opium-protocol/IOpiumDerivativeLogic.sol";
+import "./external/opium-protocol/LibOpiumCalculator.sol";
+import "./external/opium-protocol/IOpiumOnChainPositionsLens.sol";
 
 import "./BaseStrategy.sol";
 

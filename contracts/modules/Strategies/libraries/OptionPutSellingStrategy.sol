@@ -5,12 +5,10 @@ import "./external/opium-products/ILiveFeedOracleId.sol";
 
 import "./OptionsSellingStrategy.sol";
 
-abstract contract OptionCallSellingStrategy is OptionsSellingStrategy {
-  // TODO: Implement: Auction selling strategy + Combo
-
+abstract contract OptionPutSellingStrategy is OptionsSellingStrategy {
   function getNextStrikePrice() public view override returns (uint256 nextStrikePrice) {
     uint256 currentPrice = ILiveFeedOracleId(derivative.oracleId).getResult();
-    nextStrikePrice = currentPrice * (BASE + strikePriceDelta) / BASE;
+    nextStrikePrice = currentPrice * (BASE - strikePriceDelta) / BASE;
 
     if (nextStrikePrice > strikePriceRounding) {
       nextStrikePrice = nextStrikePrice - (nextStrikePrice % strikePriceRounding);

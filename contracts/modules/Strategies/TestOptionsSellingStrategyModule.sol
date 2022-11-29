@@ -4,11 +4,11 @@ pragma solidity ^0.8.0;
 import "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
 
-import "./libraries/external/opium/IOpiumRegistry.sol";
-import "./libraries/external/opium/IOpiumCore.sol";
-import "./libraries/external/opium/IOpiumDerivativeLogic.sol";
-import "./libraries/external/opium/LibOpiumCalculator.sol";
-import "./libraries/external/opium/IOpiumOnChainPositionsLens.sol";
+import "./libraries/external/opium-protocol/IOpiumRegistry.sol";
+import "./libraries/external/opium-protocol/IOpiumCore.sol";
+import "./libraries/external/opium-protocol/IOpiumDerivativeLogic.sol";
+import "./libraries/external/opium-protocol/LibOpiumCalculator.sol";
+import "./libraries/external/opium-protocol/IOpiumOnChainPositionsLens.sol";
 
 import "../../base/RegistryManager.sol";
 
