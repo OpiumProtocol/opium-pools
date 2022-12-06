@@ -15,6 +15,10 @@ import {
 
 import { RegistryModule } from "./../../typechain/";
 
+// Gnosis Safe Utils
+const GNOSIS_SAFE_FALLBACK_HANDLER =
+  "0xf48f2B2d2a534e402487b3ee7C18c33Aec0Fe5e4";
+
 describe("RegistryModule", function () {
   let registryModuleSingleton: RegistryModule;
   let registryModule: RegistryModule;
@@ -159,6 +163,7 @@ describe("RegistryModule", function () {
     const gnosisSafe = await deployGnosisSafe(
       gnosisSafeSingleton,
       gnosisSafeProxyFactory,
+      GNOSIS_SAFE_FALLBACK_HANDLER,
       deployer
     );
 

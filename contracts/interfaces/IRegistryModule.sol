@@ -20,6 +20,7 @@ interface IRegistryModule {
   // Setters
   function setRegistryAddresses(RegistryAddresses memory registryAddresses_) external;
   function executeOnVault(address target, bytes memory data) external;
+  function executeOnVaultDelegate(address target, bytes memory data) external;
 }
 
 interface IZodiacModule {

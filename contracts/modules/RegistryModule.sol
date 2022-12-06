@@ -83,6 +83,26 @@ contract RegistryModule is IRegistryModule, Module {
         require(success, "R5");
     }
 
+    /// @notice Executes arbitrary transaction as a call from the Vault's behalf
+    /// @param target address of the call target
+    /// @param data data of the call
+    function executeOnVaultDelegate(
+        address target,
+        bytes memory data
+    ) override external {
+        // Check if msg.sender is authorized to execute transactions on Vault
+        require(
+            msg.sender == _registryAddresses.stakingModule ||
+            msg.sender == address(_registryAddresses.accountingModule) ||
+            msg.sender == _registryAddresses.strategyModule,
+            "R4"
+        );
+        // Execute via Zodiac's Module
+        bool success = exec(target, 0, data, Enum.Operation.DelegateCall);
+        // Check if succeeded
+        require(success, "R5");
+    }
+
     // Private setters
     /// @dev Private setter of address book of Registry module
     /// @param registryAddresses_ new address book of Registry module

@@ -41,6 +41,10 @@ const TRADING_LENGTH = 3600 * 24 * 2; // 2 days
 const ZERO = ethers.constants.Zero;
 const BASE = ethers.utils.parseEther("1");
 
+// Gnosis Safe Utils
+const GNOSIS_SAFE_FALLBACK_HANDLER =
+  "0xf48f2B2d2a534e402487b3ee7C18c33Aec0Fe5e4";
+
 describe("ScheduledDepositsAndWithdrawals", function () {
   let accountingModule: AccountingModule;
   let registryModule: RegistryModule;
@@ -81,6 +85,7 @@ describe("ScheduledDepositsAndWithdrawals", function () {
     gnosisSafe = await deployGnosisSafe(
       gnosisSafeSingleton,
       gnosisSafeProxyFactory,
+      GNOSIS_SAFE_FALLBACK_HANDLER,
       deployer
     );
 
