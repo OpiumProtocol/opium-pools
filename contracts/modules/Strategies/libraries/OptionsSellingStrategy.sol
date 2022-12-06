@@ -75,7 +75,7 @@ abstract contract OptionsSellingStrategy is OpiumProtocolV2EnabledStrategy, Opiu
   }
 
   // Anyone
-  function mint() external {
+  function mint() external canTrade() {
     require(strikePrice == 0, "OSS2");
 
     strikePrice = getNextStrikePrice();
@@ -87,7 +87,7 @@ abstract contract OptionsSellingStrategy is OpiumProtocolV2EnabledStrategy, Opiu
     ) = _opiumV2MintPositions(derivative);
   }
 
-  function startAuction() external {
+  function startAuction() external canTrade() {
     require(strikePrice != 0, "OSS3");
 
     ILifecycleModule lifecycleModule = _registryModule.getRegistryAddresses().lifecycleModule;
@@ -113,7 +113,7 @@ abstract contract OptionsSellingStrategy is OpiumProtocolV2EnabledStrategy, Opiu
     _startAuction(auctionOrder);
   }
 
-  function execute() external {
+  function execute() external canRebalance() {
     _opiumV2ExecutePositions(derivative);
 
     strikePrice = 0;
