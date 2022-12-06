@@ -46,6 +46,10 @@ const BASE_PERCENTAGE = ethers.utils.parseEther("10");
 
 const POOL_HOLDINGS = DEPOSIT_AMOUNT.sub(UTILIZE_AMOUNT);
 
+// Gnosis Safe Utils
+const GNOSIS_SAFE_FALLBACK_HANDLER =
+  "0xf48f2B2d2a534e402487b3ee7C18c33Aec0Fe5e4";
+
 describe("RageQuit", function () {
   let accountingModule: AccountingModule;
   let registryModule: RegistryModule;
@@ -89,6 +93,7 @@ describe("RageQuit", function () {
     gnosisSafe = await deployGnosisSafe(
       gnosisSafeSingleton,
       gnosisSafeProxyFactory,
+      GNOSIS_SAFE_FALLBACK_HANDLER,
       deployer
     );
 

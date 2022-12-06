@@ -38,6 +38,10 @@ const FUTURE_OFFSET = 3600; // 1 hour
 
 const LOCAL_DELTA = 600; // 10 minutes
 
+// Gnosis Safe Utils
+const GNOSIS_SAFE_FALLBACK_HANDLER =
+  "0xf48f2B2d2a534e402487b3ee7C18c33Aec0Fe5e4";
+
 /**
  * Not initialized   Staking phase   Trading phase   Idle phase   Not initialized   Staking phase
  * _______________ | _____________ | _____________ | __________ | _______________ | _____________
@@ -80,6 +84,7 @@ describe("LifecycleModule", function () {
     gnosisSafe = await deployGnosisSafe(
       gnosisSafeSingleton,
       gnosisSafeProxyFactory,
+      GNOSIS_SAFE_FALLBACK_HANDLER,
       deployer
     );
 

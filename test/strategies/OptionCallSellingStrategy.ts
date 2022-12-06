@@ -1,6 +1,19 @@
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import { expect } from "chai";
 import { ethers, upgrades } from "hardhat";
+import { VoidSigner } from "ethers";
+
+import {
+  buildAuctionOrder,
+  AuctionPricingFunction,
+  AuctionPricingDirection,
+  EthersSignerConnector,
+} from "@opiumteam/opium-auction-v2-utils";
+
+import {
+  LimitOrderBuilder,
+  LimitOrderProtocolFacade,
+} from "@1inch/limit-order-protocol";
 
 import {
   deployGnosisSafeSingleton,
@@ -11,53 +24,60 @@ import {
   deployRegistryModule,
   enableModule,
   setupRegistry,
-  setStrategyAdvisor,
-} from "./mixins";
+  setStrategyDerivative,
+} from "../mixins";
 
 import {
   MockToken,
   GnosisSafeL2,
   StakingModule,
   RegistryModule,
-  TestOptionsSellingStrategyModule,
+  OptionCallSellingStrategy,
   AccountingModule,
   LifecycleModule,
   PoolsLens,
-} from "./../typechain/";
+} from "../../typechain/";
 
 import {
   timeTravel,
   takeSnapshot,
   restoreSnapshot,
   getCurrentTimestamp,
-} from "./utils";
+} from "../utils";
 
 // Strategy constants
 const BASE = ethers.utils.parseEther("1");
+const minPrice = ethers.utils.parseEther("0.0005");
+const maxPrice = ethers.utils.parseEther("0.0020");
 
 // Lifecycle Module constants
 const EPOCH_LENGTH = 3600 * 24 * 7; // 1 week
 const STAKING_LENGTH = 3600 * 4; // 4 hours
 const TRADING_LENGTH = 3600 * 24 * 2; // 2 days
 
-// Strategy Module constants
-const OPIUM_REGISTRY = "0x17b6ffe276e8A4a299a5a87a656aFc5b8FA3ee4a"; // Arbitrum One
-const OPIUM_LENS = "0xfa01Fd6118445F811753D96178F2ef8AE77caa53"; // Arbitrum One
+// Strategy Module constants: Arbitrum One
+const CHAIN_ID = 42161;
+const OPIUM_REGISTRY = "0x17b6ffe276e8A4a299a5a87a656aFc5b8FA3ee4a";
+const OPIUM_LENS = "0xfa01Fd6118445F811753D96178F2ef8AE77caa53";
+const OPIUM_AUCTION_HELPER = "0x1CaD268F540aa7e5C606b203e8443562332a3a35";
+const LIMIT_ORDER_PROTOCOL = "0x7f069df72b7a39bce9806e3afaf579e54d8cf2b9";
+const SAFE_SIGN_MESSAGE_LIBRARY = "0xA65387F16B013cf2Af4605Ad8aA5ec25a2cbA3a2";
 
 // Gnosis Safe Utils
 const GNOSIS_SAFE_FALLBACK_HANDLER =
   "0xf48f2B2d2a534e402487b3ee7C18c33Aec0Fe5e4";
 
-describe("E2E Test", function () {
+describe("OptionCallSellingStrategy", function () {
   let deployer: SignerWithAddress;
   let staker: SignerWithAddress;
   let buyer: SignerWithAddress;
   let advisor: SignerWithAddress;
+  let random: SignerWithAddress;
 
   let gnosisSafe: GnosisSafeL2;
   let mockToken: MockToken;
   let stakingModule: StakingModule;
-  let strategyModule: TestOptionsSellingStrategyModule;
+  let strategyModule: OptionCallSellingStrategy;
   let registryModule: RegistryModule;
   let accountingModule: AccountingModule;
   let lifecycleModule: LifecycleModule;
@@ -71,7 +91,7 @@ describe("E2E Test", function () {
   before(async () => {
     snapshotId = await takeSnapshot();
 
-    [deployer, staker, buyer, advisor] = await ethers.getSigners();
+    [deployer, staker, buyer, advisor, random] = await ethers.getSigners();
 
     // SETUP STARTED
 
@@ -139,16 +159,20 @@ describe("E2E Test", function () {
     await stakingModule.deployed();
 
     // Deploy Strategy Module
-    const TestOptionsSellingStrategyModule = await ethers.getContractFactory(
-      "TestOptionsSellingStrategyModule"
+    const OptionCallSellingStrategy = await ethers.getContractFactory(
+      "OptionCallSellingStrategy"
     );
-    strategyModule = <TestOptionsSellingStrategyModule>(
-      await upgrades.deployProxy(TestOptionsSellingStrategyModule, [
+    strategyModule = <OptionCallSellingStrategy>(
+      await OptionCallSellingStrategy.deploy(
         OPIUM_REGISTRY,
         OPIUM_LENS,
+        SAFE_SIGN_MESSAGE_LIBRARY,
+        OPIUM_AUCTION_HELPER,
+        LIMIT_ORDER_PROTOCOL,
         registryModule.address,
         gnosisSafe.address,
-      ])
+        advisor.address
+      )
     );
     await strategyModule.deployed();
 
@@ -163,8 +187,6 @@ describe("E2E Test", function () {
       strategyModule.address,
       deployer
     );
-
-    await setStrategyAdvisor(gnosisSafe, strategyModule, advisor, deployer);
 
     // Deploy Lens Contract
     const PoolsLens = await ethers.getContractFactory("PoolsLens");
@@ -291,41 +313,101 @@ describe("E2E Test", function () {
       "IOpiumOnChainPositionsLens",
       OPIUM_LENS
     );
+
+    // Set a derivative base to strategy
+    await setStrategyDerivative(
+      gnosisSafe,
+      strategyModule,
+      derivative,
+      deployer
+    );
+
+    await strategyModule.mint();
+
+    const newDerivative = await strategyModule.getDerivative();
     const positionAddresses =
-      await opiumLens.predictPositionsAddressesByDerivative(derivative);
+      await opiumLens.predictPositionsAddressesByDerivative(newDerivative);
 
-    const availableQuantity = await strategyModule.getAvailableQuantity(
-      derivative
+    const availableQuantity = await strategyModule.availableQuantity();
+
+    const tx = await strategyModule.startAuction();
+    const receipt = await tx.wait();
+    const event = receipt.events?.find(
+      (event) => event.event === "AuctionStarted"
+    );
+    const startedAt = event?.args?.auctionOrder.startedAt.toNumber();
+    const endedAt = event?.args?.auctionOrder.endedAt.toNumber();
+
+    const epochId = await lifecycleModule.getEpochId();
+
+    // Signers preparation
+    const randomProviderConnector = new EthersSignerConnector(
+      random as unknown as VoidSigner
+    );
+    const randomLimitOrderBuilder = new LimitOrderBuilder(
+      LIMIT_ORDER_PROTOCOL,
+      CHAIN_ID,
+      randomProviderConnector,
+      () => epochId.toString()
+    );
+    const auctionOrder = buildAuctionOrder(
+      OPIUM_AUCTION_HELPER,
+      randomLimitOrderBuilder,
+      {
+        makerAssetAddress: positionAddresses.longPositionAddress,
+        takerAssetAddress: mockToken.address,
+        makerAddress: gnosisSafe.address,
+        makerAmount: availableQuantity.toString(),
+        nonce: 0,
+      },
+      {
+        pricingFunction: AuctionPricingFunction.EXPONENTIAL,
+        pricingDirection: AuctionPricingDirection.DECREASING,
+        partialFill: true,
+        minTakerAmount: availableQuantity.mul(minPrice).div(BASE).toString(),
+        maxTakerAmount: availableQuantity.mul(maxPrice).div(BASE).toString(),
+        startedAt: startedAt,
+        endedAt: endedAt,
+        amplifier: 10,
+      }
     );
 
-    await strategyModule.connect(advisor).mintPositions(derivative);
-
-    const PREMIUM = ethers.utils.parseEther("0.01");
-    const TOTAL_PREMIUM = PREMIUM.mul(availableQuantity.availableQuantity).div(
-      BASE
-    );
+    const TOTAL_PREMIUM = availableQuantity.mul(maxPrice).div(BASE);
     await mockToken.transfer(buyer.address, TOTAL_PREMIUM);
-    await mockToken
-      .connect(buyer)
-      .approve(strategyModule.address, TOTAL_PREMIUM);
+    await mockToken.connect(buyer).approve(LIMIT_ORDER_PROTOCOL, TOTAL_PREMIUM);
+    const takerProviderConnector = new EthersSignerConnector(
+      buyer as unknown as VoidSigner
+    );
+    const takerLimitOrderProtocolFacade = new LimitOrderProtocolFacade(
+      LIMIT_ORDER_PROTOCOL,
+      takerProviderConnector
+    );
 
-    await strategyModule
-      .connect(advisor)
-      .setPremium(positionAddresses.longPositionAddress, PREMIUM);
-
-    await strategyModule
-      .connect(buyer)
-      .purchasePosition(
-        positionAddresses.longPositionAddress,
-        availableQuantity.availableQuantity,
-        PREMIUM
-      );
+    const callData = takerLimitOrderProtocolFacade.fillLimitOrder(
+      auctionOrder,
+      "0x",
+      availableQuantity.toString(),
+      "0",
+      TOTAL_PREMIUM.toString()
+    );
+    await buyer.sendTransaction({
+      to: LIMIT_ORDER_PROTOCOL,
+      data: callData,
+    });
 
     // Check pool utilization via Accounting Lens
     const { poolUtilization } = await poolsLens.getAccountingData(
       accountingModule.address
     );
-    expect(poolUtilization).to.equal(ethers.utils.parseEther("0.99"));
+    expect(poolUtilization.gte(ethers.utils.parseEther("0.99"))).to.equal(true);
+
+    // Check purchaser balance
+    const MockToken = await ethers.getContractFactory("MockToken");
+    const longPositionToken = (await MockToken.attach(
+      positionAddresses.longPositionAddress
+    )) as MockToken;
+    const buyerBalance = await longPositionToken.balanceOf(buyer.address);
+    expect(buyerBalance).to.equal(availableQuantity);
 
     // Time travel to Next epoch
     await timeTravel(EPOCH_LENGTH - STAKING_LENGTH);
@@ -336,7 +418,7 @@ describe("E2E Test", function () {
     );
     await oracle._callback(derivative.endTime);
 
-    await strategyModule.executePositions(derivative);
+    await strategyModule.execute();
 
     await strategyModule.rebalance();
   });

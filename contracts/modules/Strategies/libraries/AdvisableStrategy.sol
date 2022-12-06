@@ -9,8 +9,9 @@ abstract contract AdvisableStrategy is BaseStrategy, AccessControl {
   /// @notice Constant containing the hash of the ADVISOR_ROLE
   bytes32 public constant ADVISOR_ROLE = keccak256("ADVISOR_ROLE");
 
-  constructor(address owner_) {
-    _setupRole(DEFAULT_ADMIN_ROLE, address(owner_));
+  constructor(address owner_, address advisor_) {
+    _setupRole(DEFAULT_ADMIN_ROLE, owner_);
+    _setupRole(ADVISOR_ROLE, advisor_);
   }
 
   function transferAdvisory(address newAdvisor_) external onlyRole(ADVISOR_ROLE) {

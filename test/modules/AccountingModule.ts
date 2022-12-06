@@ -71,6 +71,10 @@ const FINAL_LIQUIDITY_AMOUNT = TOTAL_DEPOSITED_AMOUNT.add(PREMIUM_AMOUNT)
 
 const TOTAL_FEES_AMOUNT = PROFIT_FEE_AMOUNT.add(MAINTENANCE_FEE_AMOUNT); // 1.03(8)
 
+// Gnosis Safe Utils
+const GNOSIS_SAFE_FALLBACK_HANDLER =
+  "0xf48f2B2d2a534e402487b3ee7C18c33Aec0Fe5e4";
+
 describe("AccountingModule", function () {
   let accountingModule: AccountingModule;
   let registryModule: RegistryModule;
@@ -108,6 +112,7 @@ describe("AccountingModule", function () {
     gnosisSafe = await deployGnosisSafe(
       gnosisSafeSingleton,
       gnosisSafeProxyFactory,
+      GNOSIS_SAFE_FALLBACK_HANDLER,
       deployer
     );
 

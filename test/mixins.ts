@@ -11,6 +11,7 @@ import {
   LifecycleModule,
   StakingModule,
   TestOptionsSellingStrategyModule,
+  OptionCallSellingStrategy,
 } from "./../typechain/";
 
 import { decodeLogs } from "./utils/index";
@@ -90,6 +91,7 @@ export const deployGnosisSafeFactory = async () => {
 export const deployGnosisSafe = async (
   gnosisSafeSingleton: GnosisSafeL2,
   gnosisSafeProxyFactory: GnosisSafeProxyFactory,
+  fallbackHandler: string,
   owner: SignerWithAddress
 ) => {
   const GnosisSafe = await ethers.getContractFactory("GnosisSafeL2");
@@ -103,7 +105,7 @@ export const deployGnosisSafe = async (
       1, // threshold
       ethers.constants.AddressZero, // to (delegate call)
       "0x", // data (delegate call)
-      ethers.constants.AddressZero, // fallback handler
+      fallbackHandler, // fallback handler
       ethers.constants.AddressZero, // payment token
       "0", // payment
       ethers.constants.AddressZero, // payment address
@@ -231,6 +233,33 @@ export const sendArbitraryTx = async (
     target,
     "0",
     data,
+    "0",
+    "0",
+    "0",
+    "0",
+    ethers.constants.AddressZero,
+    ethers.constants.AddressZero,
+    `0x000000000000000000000000${owner.address.substring(
+      2
+    )}000000000000000000000000000000000000000000000000000000000000000001`
+  );
+};
+
+export const setStrategyDerivative = async (
+  gnosisSafe: GnosisSafeL2,
+  strategyModule: OptionCallSellingStrategy,
+  derivative: any,
+  owner: SignerWithAddress
+) => {
+  const setDerivativeCalldata = strategyModule.interface.encodeFunctionData(
+    "setDerivative",
+    [derivative]
+  );
+
+  await gnosisSafe.execTransaction(
+    strategyModule.address,
+    "0",
+    setDerivativeCalldata,
     "0",
     "0",
     "0",

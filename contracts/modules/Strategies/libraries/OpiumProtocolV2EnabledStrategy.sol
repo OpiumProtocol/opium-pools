@@ -20,9 +20,13 @@ library OpiumSelectors {
   bytes4 internal constant OPIUM_PROTOCOL_EXECUTE = bytes4(keccak256(bytes("execute(address,uint256)")));
 }
 
-abstract contract OpiumV2EnabledStrategy is BaseStrategy {
+abstract contract OpiumProtocolV2EnabledStrategy is BaseStrategy {
   using LibOpiumCalculator for uint256;
   using SafeERC20 for IERC20Metadata;
+
+  event OpiumPositionsMinted(IOpiumCore.Derivative derivative, uint256 quantity);
+  event OpiumPositionsRedeemed(IOpiumCore.Derivative derivative, uint256 quantity);
+  event OpiumPositionsExecuted(IOpiumCore.Derivative derivative, uint256 quantity, bool long);
   
   /// @notice Reference value (basis) representing 100%
   uint256 public constant BASE = 1e18;
@@ -32,7 +36,7 @@ abstract contract OpiumV2EnabledStrategy is BaseStrategy {
   /// @notice Instance of the Opium Protocol V2 Lens contract
   IOpiumOnChainPositionsLens private _opiumLens;
 
-  /// @notice Constructor of OpiumV2EnabledStrategy library
+  /// @notice Constructor of OpiumProtocolV2EnabledStrategy library
   /// @param opiumRegistry_ instance of the Opium Protocol V2 Registry contract
   /// @param opiumLens_ instance of the Opium Protocol V2 Lens contract
   constructor(
@@ -78,7 +82,7 @@ abstract contract OpiumV2EnabledStrategy is BaseStrategy {
   /** Internal setters */
   /// @notice Allows advisor to mint the maximum possible quantity of the provided derivative on the Vault's behalf
   /// @param derivative_ provided derivative to mint
-  function _opiumV2MintPositions(IOpiumCore.Derivative memory derivative_) internal {
+  function _opiumV2MintPositions(IOpiumCore.Derivative memory derivative_) internal returns (address, address, uint256) {
     // Get available quantity and required margin
     (uint256 availableQuantity, uint256 requiredMargin) = getAvailableQuantity(derivative_);
 
@@ -108,6 +112,10 @@ abstract contract OpiumV2EnabledStrategy is BaseStrategy {
     // Notify Accounting Module of the new positions
     accountingModule.changeHoldingPosition(longPositionAddress, true);
     accountingModule.changeHoldingPosition(shortPositionAddress, true);
+
+    emit OpiumPositionsMinted(derivative_, availableQuantity);
+
+    return (longPositionAddress, shortPositionAddress, availableQuantity);
   }
 
   /// @notice Allows to execute all the positions remaining in the Vault when can Rebalance
@@ -130,18 +138,22 @@ abstract contract OpiumV2EnabledStrategy is BaseStrategy {
 
       longPositionBalance -= redeemPositions;
       shortPositionBalance -= redeemPositions;
+
+      emit OpiumPositionsRedeemed(derivative_, redeemPositions);
     }
 
     // If any amount of LONG position remains, execute separately
     if (longPositionBalance > 0) {
       bytes memory data = abi.encodeWithSelector(OpiumSelectors.OPIUM_PROTOCOL_EXECUTE, longPositionAddress, longPositionBalance);
       _registryModule.executeOnVault(_opiumRegistry.getProtocolAddresses().core, data);
+      emit OpiumPositionsExecuted(derivative_, longPositionBalance, true);
     }
 
     // If any amount of SHORT position remains, execute separately
     if (shortPositionBalance > 0) {
       bytes memory data = abi.encodeWithSelector(OpiumSelectors.OPIUM_PROTOCOL_EXECUTE, shortPositionAddress, shortPositionBalance);
       _registryModule.executeOnVault(_opiumRegistry.getProtocolAddresses().core, data);
+      emit OpiumPositionsExecuted(derivative_, shortPositionBalance, false);
     }
 
     // Get Accounting Module instance
