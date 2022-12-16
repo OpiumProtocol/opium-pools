@@ -27,8 +27,17 @@ contract OptionCallSellingStrategy is OptionsSellingStrategy {
     uint256 currentPrice = ILiveFeedOracleId(derivative.oracleId).getResult();
     nextStrikePrice = currentPrice * (BASE + strikePriceDelta) / BASE;
 
-    if (nextStrikePrice > strikePriceRounding) {
-      nextStrikePrice = nextStrikePrice - (nextStrikePrice % strikePriceRounding);
+    uint256 mod = nextStrikePrice % strikePriceRounding;
+    bool roundUp = mod >= (strikePriceRounding / 2);
+
+    nextStrikePrice = nextStrikePrice / strikePriceRounding * strikePriceRounding;
+
+    if (roundUp) {
+      nextStrikePrice += strikePriceRounding;
+    }
+
+    if (nextStrikePrice == 0) {
+      nextStrikePrice = strikePriceRounding;
     }
   }
 }

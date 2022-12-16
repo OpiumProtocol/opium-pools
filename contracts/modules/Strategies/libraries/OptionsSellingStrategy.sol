@@ -78,7 +78,10 @@ abstract contract OptionsSellingStrategy is OpiumProtocolV2EnabledStrategy, Opiu
   function mint() external canTrade() {
     require(strikePrice == 0, "OSS2");
 
+    ILifecycleModule lifecycleModule = _registryModule.getRegistryAddresses().lifecycleModule;
+
     strikePrice = getNextStrikePrice();
+    derivative.endTime = lifecycleModule.getCurrentEpochEnd();
     derivative.params[0] = strikePrice;
     (
       longPositionAddress,
