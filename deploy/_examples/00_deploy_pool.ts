@@ -1,3 +1,10 @@
+/** Deployment Template
+ *
+ * // 1. Check all TODOs to run the deployment properly
+ * // 2. Use commented code to use already deployed contract instead of deploying new one
+ *
+ */
+
 import { HardhatRuntimeEnvironment } from "hardhat/types";
 import { DeployFunction } from "hardhat-deploy/types";
 import { upgrades } from "hardhat";
@@ -10,155 +17,204 @@ import {
   AccountingModule,
   LifecycleModule,
   StakingModule,
-  PoolsLens,
+  OptionCallSellingStrategy,
 } from "../../typechain";
 
-import { deployGnosisSafe, enableModule, setupRegistry } from "../../test/mixins";
+import {
+  deployGnosisSafe,
+  enableModule,
+  setupRegistry,
+  setStrategyDerivative,
+} from "../../test/mixins";
 
-const GNOSIS_SAFE_MASTER_COPY_ADDRESS =
-  "0x3E5c63644E683549055b9Be8653de26E0B4CD36E";
-const GNOSIS_SAFE_PROXY_FACTORY_ADDRESS =
-  "0xa6B71E26C5e0845f74c812102Ca7114b6a896AB2";
+// TODO: Add all the addresses
+// Safe Constants
+const GNOSIS_SAFE_MASTER_COPY_ADDRESS = "";
+const GNOSIS_SAFE_PROXY_FACTORY_ADDRESS = "";
+const GNOSIS_FALLBACK_HANDLER = "";
 
-const WETH_ADDRESS = "0x8800Ab5dE5976A682aA4ACF76f01C703Ce963413";
+// Strategy Constants
+const GNOSIS_SAFE_SIGN_MESSAGE_LIB_ADDRESS = "";
+const OPIUM_REGISTRY_ADDRESS = "";
+const OPIUM_LENS_ADDRESS = "";
+const AUCTION_HELPER_ADDRESS = "";
+const LIMIT_ORDER_PROTOCOL_ADDRESS = "";
+
+// Misc
+const WETH_ADDRESS = "";
 
 const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
-  const { deployments, getNamedAccounts, network, ethers } = hre;
+  const { deployments, network, ethers } = hre;
   const { deploy } = deployments;
 
   const [deployer] = await ethers.getSigners();
 
-  // TODO: Change network here
   // Skip if network is not correct
-  if (network.name !== "correct") {
+  // TODO: Put a correct network name
+  if (network.name !== "name") {
     return;
   }
 
   /** #1: Deploy GnosisSafe */
-
-  // const gnosisSafeSingleton = await ethers.getContractAt<GnosisSafeL2>(
-  //   "GnosisSafeL2",
-  //   GNOSIS_SAFE_MASTER_COPY_ADDRESS
-  // );
-
-  // const gnosisSafeProxyFactory =
-  //   await ethers.getContractAt<GnosisSafeProxyFactory>(
-  //     "GnosisSafeProxyFactory",
-  //     GNOSIS_SAFE_PROXY_FACTORY_ADDRESS
-  //   );
-
-  // const gnosisSafe = await deployGnosisSafe(
-  //   gnosisSafeSingleton,
-  //   gnosisSafeProxyFactory,
-  //   deployer
-  // );
-  const gnosisSafe = await ethers.getContractAt<GnosisSafeL2>(
+  const gnosisSafeSingleton = await ethers.getContractAt<GnosisSafeL2>(
     "GnosisSafeL2",
-    "0x520249dbd6c6ba5b796baf1f3ce28277c5cbee91"
+    GNOSIS_SAFE_MASTER_COPY_ADDRESS
   );
+
+  const gnosisSafeProxyFactory =
+    await ethers.getContractAt<GnosisSafeProxyFactory>(
+      "GnosisSafeProxyFactory",
+      GNOSIS_SAFE_PROXY_FACTORY_ADDRESS
+    );
+
+  const gnosisSafe = await deployGnosisSafe(
+    gnosisSafeSingleton, // Singleton
+    gnosisSafeProxyFactory, // Proxy Factory
+    GNOSIS_FALLBACK_HANDLER, // Fallback handler
+    deployer // Safe Owner
+  );
+  // const gnosisSafe = await ethers.getContractAt<GnosisSafeL2>(
+  //   "GnosisSafeL2",
+  //   ""
+  // );
   console.log(`Deployed GnosisSafe @ ${gnosisSafe.address}`);
 
   /** #2: Deploy Registry */
-  // const RegistryFactory = await ethers.getContractFactory("RegistryModule");
-  // const registryInitializerParams = new AbiCoder().encode(
-  //   ["address", "address", "address"],
-  //   [gnosisSafe.address, gnosisSafe.address, gnosisSafe.address]
-  // );
-  // const registryModule = (await upgrades.deployProxy(
-  //   RegistryFactory,
-  //   [registryInitializerParams],
-  //   {
-  //     initializer: "setUp",
-  //   }
-  // )) as RegistryModule;
-  const registryModule = await ethers.getContractAt<RegistryModule>(
-    "RegistryModule",
-    "0x92124c725145897d248Df25B3371fAcE90d1CcfA"
+  const RegistryFactory = await ethers.getContractFactory("RegistryModule");
+  const registryInitializerParams = new AbiCoder().encode(
+    ["address", "address", "address"],
+    [
+      gnosisSafe.address, // Owner
+      gnosisSafe.address, // Avatar
+      gnosisSafe.address, // Target
+    ]
   );
+  const registryModule = (await upgrades.deployProxy(
+    RegistryFactory,
+    [registryInitializerParams],
+    {
+      initializer: "setUp",
+    }
+  )) as RegistryModule;
+  // const registryModule = await ethers.getContractAt<RegistryModule>(
+  //   "RegistryModule",
+  //   ""
+  // );
   console.log(`Deployed RegistryModule @ ${registryModule.address}`);
 
   /** #3: Deploy AccountingModule */
-  // const AccountingFactory = await ethers.getContractFactory("AccountingModule");
-  // const accountingModule = (await upgrades.deployProxy(AccountingFactory, [
-  //   WETH_ADDRESS,
-  //   registryModule.address,
-  //   gnosisSafe.address,
-  // ])) as AccountingModule;
-  const accountingModule = await ethers.getContractAt<AccountingModule>(
-    "AccountingModule",
-    "0x65c61597e7e92Ef149a331a13b3f3386BA9C9970"
-  );
+  const AccountingFactory = await ethers.getContractFactory("AccountingModule");
+  const accountingModule = (await upgrades.deployProxy(AccountingFactory, [
+    WETH_ADDRESS, // Underlying
+    registryModule.address, // Registry
+    gnosisSafe.address, // Owner
+  ])) as AccountingModule;
+  // const accountingModule = await ethers.getContractAt<AccountingModule>(
+  //   "AccountingModule",
+  //   ""
+  // );
   console.log(`Deployed AccountingModule @ ${accountingModule.address}`);
 
   /** #4: Deploy LifecycleModule */
-  // const LifecycleFactory = await ethers.getContractFactory("LifecycleModule");
-  // const epochStart = ~~(Date.now() / 1000);
-  // const EPOCH_LENGTH = 3600 * 5 + 100;
-  // const STAKING_LENGTH = 3600 * 3;
-  // const TRADING_LENGTH = 3600 * 2;
-  // const lifecycleModule = (await upgrades.deployProxy(LifecycleFactory, [
-  //   epochStart,
-  //   [EPOCH_LENGTH, STAKING_LENGTH, TRADING_LENGTH],
-  //   registryModule.address,
-  //   gnosisSafe.address,
-  // ])) as LifecycleModule;
-  const lifecycleModule = await ethers.getContractAt<LifecycleModule>(
-    "LifecycleModule",
-    "0x98AFB642d61Dc9aD0B00c5577163a2CF73748951"
-  );
+  const LifecycleFactory = await ethers.getContractFactory("LifecycleModule");
+  const epochStart = ~~(Date.now() / 1000);
+  const EPOCH_LENGTH = 3600 * 5 + 100;
+  const STAKING_LENGTH = 3600 * 3;
+  const TRADING_LENGTH = 3600 * 2;
+  const lifecycleModule = (await upgrades.deployProxy(LifecycleFactory, [
+    epochStart, // Epoch start
+    [EPOCH_LENGTH, STAKING_LENGTH, TRADING_LENGTH], // Lengths
+    registryModule.address, // Registry
+    gnosisSafe.address, // Owner
+  ])) as LifecycleModule;
+  // const lifecycleModule = await ethers.getContractAt<LifecycleModule>(
+  //   "LifecycleModule",
+  //   ""
+  // );
   console.log(`Deployed LifecycleModule @ ${lifecycleModule.address}`);
 
   /** #5: Deploy StakingModule */
-  // const StakingFactory = await ethers.getContractFactory("StakingModule");
-  // const stakingModule = (await upgrades.deployProxy(StakingFactory, [
-  //   "LP Token",
-  //   "LPT",
-  //   registryModule.address,
-  //   gnosisSafe.address,
-  // ])) as StakingModule;
-  const stakingModule = await ethers.getContractAt<StakingModule>(
-    "StakingModule",
-    "0x703eEA0123c52E90ed36727EA394a89683e1F6a6"
-  );
+  const StakingFactory = await ethers.getContractFactory("StakingModule");
+  const stakingModule = (await upgrades.deployProxy(StakingFactory, [
+    "LP Token", // Name
+    "LPT", // Symbol
+    registryModule.address, // Registry
+    gnosisSafe.address, // Owner
+  ])) as StakingModule;
+  // const stakingModule = await ethers.getContractAt<StakingModule>(
+  //   "StakingModule",
+  //   ""
+  // );
   console.log(`Deployed StakingModule @ ${stakingModule.address}`);
 
   /** #6: Deploy StrategyModule */
-  // SKIPPED
+  const optionCallSellingStrategy = await deploy("OptionCallSellingStrategy", {
+    from: deployer.address,
+    args: [
+      OPIUM_REGISTRY_ADDRESS, // Opium Registry
+      OPIUM_LENS_ADDRESS, // Opium Lens
+      GNOSIS_SAFE_SIGN_MESSAGE_LIB_ADDRESS, // Gnosis Safe: Sign Helper
+      AUCTION_HELPER_ADDRESS, // Auction Helper
+      LIMIT_ORDER_PROTOCOL_ADDRESS, // Limit order protocol
+      registryModule.address, // Registry
+      gnosisSafe.address, // Owner
+      deployer.address, // Advisor
+    ],
+    log: true,
+  });
+  // const optionCallSellingStrategy =
+  //   await ethers.getContractAt<OptionCallSellingStrategy>(
+  //     "OptionCallSellingStrategy",
+  //     ""
+  //   );
+  console.log(
+    `Deployed OptionCallSellingStrategy @ ${optionCallSellingStrategy.address}`
+  );
 
   /** #7: Enable Registry Module */
-  // await enableModule(gnosisSafe, registryModule.address, deployer);
+  await enableModule(gnosisSafe, registryModule.address, deployer);
   console.log("Registry module enabled");
 
   /** #8: Setup Registry */
-  // const STRATEGY_ADDRESS = deployer.address;
-  // await setupRegistry(
-  //   gnosisSafe,
-  //   registryModule,
-  //   accountingModule,
-  //   lifecycleModule,
-  //   stakingModule,
-  //   STRATEGY_ADDRESS,
-  //   deployer
-  // );
+  await setupRegistry(
+    gnosisSafe,
+    registryModule,
+    accountingModule,
+    lifecycleModule,
+    stakingModule,
+    optionCallSellingStrategy.address,
+    deployer
+  );
   console.log("Registry is set up");
 
-  /** #9 (General): Deploy PoolsLens */
-  // const PoolsLens = await ethers.getContractFactory("PoolsLens");
-  // const poolsLens = (await PoolsLens.deploy()) as PoolsLens;
-  const poolsLens = await ethers.getContractAt<PoolsLens>(
-    "PoolsLens",
-    "0x4F1126598c5892fc98869D505B1B96f52D2c5700"
+  /** #9: Setup strategy */
+  const ONE_ETH = ethers.utils.parseEther("1");
+  const SYNTHETIC_ID_ADDRESS = ""; // OPT-C
+  const ORACLE_ID_ADDRESS = ""; // ETH/USD
+  const STRIKE_PRICE = ethers.utils.parseEther("1400");
+  const COLLATERALIZATION = ethers.utils.parseEther("1");
+
+  const derivative = {
+    margin: ONE_ETH,
+    endTime: await lifecycleModule.getCurrentEpochEnd(),
+    params: [STRIKE_PRICE, COLLATERALIZATION, 0],
+    syntheticId: SYNTHETIC_ID_ADDRESS,
+    token: WETH_ADDRESS,
+    oracleId: ORACLE_ID_ADDRESS,
+  };
+  await setStrategyDerivative(
+    gnosisSafe,
+    optionCallSellingStrategy as unknown as OptionCallSellingStrategy,
+    derivative,
+    deployer
   );
-  console.log(`Deployed PoolsLens @ ${poolsLens.address}`);
+  console.log("Strategy derivative is set");
 
-  /** Rebalance Pool (Initialize Epoch) */
-  await accountingModule.rebalance();
-  console.log("Rebalanced");
-
-  // DON'T PERSIST THE DEPLOYMENT in migrations
+  // TODO: Change to `true` to persist deployment
   return false;
 };
 
 export default func;
+// TODO: Change to reflect deployment
 func.id = "00_TEST";
-func.tags = ["OpiumPool", "example"];
+func.tags = ["OpiumPool", "OptionCallSellingStrategy"];

@@ -1,4 +1,6 @@
+/* eslint-disable import/first */
 import * as dotenv from "dotenv";
+dotenv.config();
 
 import { HardhatUserConfig, task } from "hardhat/config";
 import "@nomiclabs/hardhat-etherscan";
@@ -10,7 +12,7 @@ import "solidity-coverage";
 import "hardhat-dependency-compiler";
 import "hardhat-deploy";
 
-dotenv.config();
+import "./tasks/auctions";
 
 // This is a sample Hardhat task. To learn how to create your own go to
 // https://hardhat.org/guides/create-task.html
