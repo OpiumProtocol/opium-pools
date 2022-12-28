@@ -12,7 +12,9 @@ import "solidity-coverage";
 import "hardhat-dependency-compiler";
 import "hardhat-deploy";
 
+import "./tasks/advisory";
 import "./tasks/auctions";
+import "./tasks/maintenance";
 
 // This is a sample Hardhat task. To learn how to create your own go to
 // https://hardhat.org/guides/create-task.html
