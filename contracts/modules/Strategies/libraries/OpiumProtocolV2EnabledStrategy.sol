@@ -16,7 +16,7 @@ import "./BaseStrategy.sol";
 
 library OpiumSelectors {
   bytes4 internal constant OPIUM_PROTOCOL_CREATE_AND_MINT = bytes4(keccak256(bytes("createAndMint((uint256,uint256,uint256[],address,address,address),uint256,address[2])")));
-  bytes4 internal constant OPIUM_PROTOCOL_REDEEM = bytes4(keccak256(bytes("redeem(address[],uint256)")));
+  bytes4 internal constant OPIUM_PROTOCOL_REDEEM = bytes4(keccak256(bytes("redeem(address[2],uint256)")));
   bytes4 internal constant OPIUM_PROTOCOL_EXECUTE = bytes4(keccak256(bytes("execute(address,uint256)")));
 }
 
