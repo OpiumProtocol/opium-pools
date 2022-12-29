@@ -162,8 +162,13 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const optionCallSellingStrategy =
     await ethers.getContractAt<OptionCallSellingStrategy>(
       "OptionCallSellingStrategy",
-      "0x8a07710F34E3F383aA293fd163Ae789160C7d160"
+      "0xE44dCf75069d849b0f0cdE323525035d835C2d53"
     );
+  // const OLD_optionCallSellingStrategy =
+  //   await ethers.getContractAt<OptionCallSellingStrategy>(
+  //     "OptionCallSellingStrategy",
+  //     "0x8a07710F34E3F383aA293fd163Ae789160C7d160"
+  //   );
   console.log(
     `Deployed OptionCallSellingStrategy @ ${optionCallSellingStrategy.address}`
   );
@@ -173,15 +178,17 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   console.log("Registry module enabled");
 
   /** #8: Setup Registry */
-  // await setupRegistry(
-  //   gnosisSafe,
-  //   registryModule,
-  //   accountingModule,
-  //   lifecycleModule,
-  //   stakingModule,
-  //   optionCallSellingStrategy.address,
-  //   deployer
-  // );
+  // await (
+  //   await setupRegistry(
+  //     gnosisSafe,
+  //     registryModule,
+  //     accountingModule,
+  //     lifecycleModule,
+  //     stakingModule,
+  //     optionCallSellingStrategy.address,
+  //     deployer
+  //   )
+  // ).wait();
   console.log("Registry is set up");
 
   /** #9 (General): Deploy PoolsLens */
@@ -197,20 +204,21 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   console.log(`Deployed PoolsLens @ ${poolsLens.address}`);
 
   /** Setup strategy */
-  const ONE_ETH = ethers.utils.parseEther("1");
-  const SYNTHETIC_ID_ADDRESS = "0x6E797659154AD0D6f199feaFA2E2086Ce0239Fbf"; // OPT-C
-  const ORACLE_ID_ADDRESS = "0xc135be47accef605e72c5017e450ae0207c97afb"; // ETH/USD
-  const STRIKE_PRICE = ethers.utils.parseEther("1400");
-  const COLLATERALIZATION = ethers.utils.parseEther("1");
+  // const ONE_ETH = ethers.utils.parseEther("1");
+  // const SYNTHETIC_ID_ADDRESS = "0x6E797659154AD0D6f199feaFA2E2086Ce0239Fbf"; // OPT-C
+  // const ORACLE_ID_ADDRESS = "0xc135be47accef605e72c5017e450ae0207c97afb"; // ETH/USD
+  // const STRIKE_PRICE = ethers.utils.parseEther("1400");
+  // const COLLATERALIZATION = ethers.utils.parseEther("1");
 
-  const derivative = {
-    margin: ONE_ETH,
-    endTime: await lifecycleModule.getCurrentEpochEnd(),
-    params: [STRIKE_PRICE, COLLATERALIZATION, 0],
-    syntheticId: SYNTHETIC_ID_ADDRESS,
-    token: WETH_ADDRESS,
-    oracleId: ORACLE_ID_ADDRESS,
-  };
+  // const derivative = {
+  //   margin: ONE_ETH,
+  //   endTime: await lifecycleModule.getCurrentEpochEnd(),
+  //   params: [STRIKE_PRICE, COLLATERALIZATION, 0],
+  //   syntheticId: SYNTHETIC_ID_ADDRESS,
+  //   token: WETH_ADDRESS,
+  //   oracleId: ORACLE_ID_ADDRESS,
+  // };
+  // const derivative = await OLD_optionCallSellingStrategy.getDerivative();
   // await setStrategyDerivative(
   //   gnosisSafe,
   //   optionCallSellingStrategy as unknown as OptionCallSellingStrategy,
@@ -221,7 +229,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
 
   /** Rebalance Pool (Initialize Epoch) */
   // await (await optionCallSellingStrategy.execute()).wait();
-  await (await optionCallSellingStrategy.rebalance()).wait();
+  // await (await optionCallSellingStrategy.rebalance()).wait();
   // console.log("Rebalanced");
 
   // DON'T PERSIST THE DEPLOYMENT in migrations
@@ -237,7 +245,7 @@ func.tags = ["OpiumPool", "example"];
 // Deployed AccountingModule @ 0x3B9C117F0057BCf102729b51464C708f29971980
 // Deployed LifecycleModule @ 0xb38E08796239Bd466044530597FeB06169AA97DB
 // Deployed StakingModule @ 0x4f6f12b85F565df3CA9029911709C0b5D63c9E5D
-// Deployed OptionCallSellingStrategy @ 0x8a07710F34E3F383aA293fd163Ae789160C7d160
+// Deployed OptionCallSellingStrategy @ 0xE44dCf75069d849b0f0cdE323525035d835C2d53
 // Registry module enabled
 // Registry is set up
 // Deployed PoolsLens @ 0xB183Df5F877B35aA2290d15eb96D350845358431
