@@ -22,6 +22,7 @@ import "../utils/Selectors.sol";
 contract AccountingModule is IAccountingModule, RegistryManager {
     using EnumerableSetUpgradeable for EnumerableSetUpgradeable.AddressSet;
 
+    /** BEGIN: STORAGE LAYOUT V1 */
     /// @notice Reference value (basis) representing 100%
     uint256 constant public BASE = 1e18;
     /// @notice Seconds in year stored
@@ -44,6 +45,11 @@ contract AccountingModule is IAccountingModule, RegistryManager {
     uint256 private _accumulatedFees;
     /// @notice Holds the record of all the positions that are currently being held by the Vault
     EnumerableSetUpgradeable.AddressSet private _holdingPositions;
+    /** END: STORAGE LAYOUT V1 */
+
+    /** BEGIN: STORAGE LAYOUT V2 */
+    uint256 private _benchmarkProfit;
+    /** END: STORAGE LAYOUT V2 */
 
     /// @notice Initializer of the Accounting Module
     /// @param underlying_ instance of an underlying ERC20 token
@@ -186,6 +192,34 @@ contract AccountingModule is IAccountingModule, RegistryManager {
         return _annualMaintenanceFee;
     }
 
+    /// @notice Returns the value of the benchmark profit
+    function getBenchmarkProfit() override external view returns (uint256) {
+        return _benchmarkProfit;
+    }
+
+    /// @notice Returns the calculation of the Rage Quit fee for the provided principal
+    function calculateRageQuitFee(uint256 principal_) override external view returns (uint256) {
+        // Process annual maintenance fee into maintenance fee per epoch
+        uint256 maintenanceFeePerEpoch =  _annualMaintenanceFee
+            * _registryModule.getRegistryAddresses().lifecycleModule.getEpochLength()
+            / YEAR_SECONDS;
+
+        /**
+         * Main goal of rage quit fee is to make it infeasible comparing to staying in the pool
+         * Thus we need to maintain this balance: epoch fee <= rage quit fee
+         * (1) liquidity * maintenanceFeePerEpoch + profit * profitFee <= rageQuitAssets * rageQuitFee
+         * We can consider that rageQuitAssets will turn into liquidity and profit
+         * (2) rageQuitAssets = liquidity + profit
+         * We introduce additional variable benchmarkProfit, that indicates the estimated and average profit of the pool
+         * (3) profit = liquidity * benchmarkProfit
+         * Combining all the equations together we have a resulting formula
+         * totalRageQuitFee = liquidity * (maintenanceFeePerEpoch + benchmarkProfit * profitFee)
+         */
+        return principal_
+            * (maintenanceFeePerEpoch + _benchmarkProfit * _immediateProfitFee / BASE)
+            / BASE;
+    }
+
     // External setters
     /// @notice Changes the total liquidity amount when asked by Staking Module
     /// @param amount_ amount to increment or decrement
@@ -287,6 +321,12 @@ contract AccountingModule is IAccountingModule, RegistryManager {
         _setAnnualMaintenanceFee(annualMaintenanceFee_);
     }
 
+    /// @notice Sets new benchmark profit when asked by Owner
+    /// @param benchmarkProfit_ new value of the benchmark profit
+    function setBenchmarkProfit(uint256 benchmarkProfit_) override external onlyOwner {
+        _setBenchmarkProfit(benchmarkProfit_);
+    }
+
     // Private setters
     /// @dev Private setter of underlying ERC20 instance with input sanitizing
     /// @param underlying_ new instance of the underlying asset to set
@@ -330,5 +370,13 @@ contract AccountingModule is IAccountingModule, RegistryManager {
         uint256 previousFee = _annualMaintenanceFee;
         _annualMaintenanceFee = annualMaintenanceFee_;
         emit AnnualMaintenanceFeeSet(previousFee, _annualMaintenanceFee);
+    }
+
+    /// @dev Private setter of benchmark profit
+    /// @param benchmarkProfit_ new benchmark profit
+    function _setBenchmarkProfit(uint256 benchmarkProfit_) private {
+        uint256 benchmarkProfit = _benchmarkProfit;
+        _benchmarkProfit = benchmarkProfit_;
+        emit BenchmarkProfitSet(benchmarkProfit, _benchmarkProfit);
     }
 }

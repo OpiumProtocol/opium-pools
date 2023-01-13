@@ -604,6 +604,8 @@ contract StakingModule is IStakingModule, ERC165Upgradeable, ERC20PermitUpgradea
                 : IERC20MetadataUpgradeable(tokens[i]).balanceOf(_registryModule.avatar());
             // Calculate users share of the Vault's balance
             transferAmount = vaultTokenBalance * shares / cachedTotalSupply;
+            // Calculate and take a fee
+            transferAmount -= _registryModule.getRegistryAddresses().accountingModule.calculateRageQuitFee(transferAmount);
 
             // Transfer tokens from vault
             bytes memory data = abi.encodeWithSelector(Selectors.ERC20_TRANSFER, receiver, transferAmount);

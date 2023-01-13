@@ -8,6 +8,7 @@ interface IAccountingModule {
   event FeeCollectorSet(address indexed previousFeeCollector, address indexed newFeeCollector);
   event ImmediateProfitFeeSet(uint256 previousFee, uint256 newFee);
   event AnnualMaintenanceFeeSet(uint256 previousFee, uint256 newFee);
+  event BenchmarkProfitSet(uint256 previousBenchmarkProfit, uint256 newBenchmarkProfit);
 
   function getUnderlying() external view returns (IERC20MetadataUpgradeable);
   function getTotalLiquidity() external view returns (uint256);
@@ -19,6 +20,8 @@ interface IAccountingModule {
   function getFeeCollector() external view returns (address);
   function getImmediateProfitFee() external view returns (uint256);
   function getAnnualMaintenanceFee() external view returns (uint256);
+  function getBenchmarkProfit() external view returns (uint256);
+  function calculateRageQuitFee(uint256 principal_) external view returns (uint256);
 
   function changeTotalLiquidity(uint256 amount_, bool add_) external;
   function changeHoldingPosition(address position_, bool add_) external;
@@ -27,4 +30,5 @@ interface IAccountingModule {
   function setFeeCollector(address feeCollector_) external;
   function setImmediateProfitFee(uint256 immediateProfitFee_) external;
   function setAnnualMaintenanceFee(uint256 annualMaintenanceFee_) external;
+  function setBenchmarkProfit(uint256 benchmarkProfit_) external;
 }
