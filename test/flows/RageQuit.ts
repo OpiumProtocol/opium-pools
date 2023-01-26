@@ -1,6 +1,7 @@
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import { expect } from "chai";
 import { ethers, upgrades } from "hardhat";
+import { BigNumber } from "ethers";
 
 import {
   deployGnosisSafeSingleton,
@@ -34,6 +35,12 @@ import {
 const EPOCH_LENGTH = 3600 * 24 * 7; // 1 week
 const STAKING_LENGTH = 3600 * 4; // 4 hours
 const TRADING_LENGTH = 3600 * 24 * 2; // 2 days
+
+// Accounting module params
+const YEAR_SECONDS = 360 * 24 * 3600; // 1 year in seconds
+const BASE = ethers.utils.parseEther("1");
+const PROFIT_FEE = ethers.utils.parseEther("0.1");
+const ANNUAL_MAINTENANCE_FEE = ethers.utils.parseEther("0.02");
 
 // Contacts for tests
 const DEPOSIT_AMOUNT = ethers.utils.parseEther("200");
@@ -165,6 +172,32 @@ describe("RageQuit", function () {
   });
 
   it("should correctly rage quit", async function () {
+    // Set benchmark profit
+    const benchmarkProfit = ethers.utils.parseEther("0.05");
+    await sendArbitraryTx(
+      gnosisSafe,
+      accountingModule.address,
+      accountingModule.interface.encodeFunctionData("setBenchmarkProfit", [
+        benchmarkProfit,
+      ]),
+      deployer
+    );
+
+    // Prepare rage quit fees calculation
+    const maintenanceFeePerEpoch =
+      ANNUAL_MAINTENANCE_FEE.mul(EPOCH_LENGTH).div(YEAR_SECONDS);
+    const cutRageQuitFees = (principal: BigNumber) => {
+      return principal.sub(
+        principal
+          .mul(
+            maintenanceFeePerEpoch.add(
+              benchmarkProfit.mul(PROFIT_FEE).div(BASE)
+            )
+          )
+          .div(BASE)
+      );
+    };
+
     // Deposit
     await mockToken
       .connect(depositor)
@@ -270,14 +303,14 @@ describe("RageQuit", function () {
       depositorSharesBefore.sub(SHARES_QUIT)
     );
     expect(depositorPositionOneAfter).to.be.equal(
-      depositorPositionOneBefore.add(POSITION_ONE_QUIT)
+      depositorPositionOneBefore.add(cutRageQuitFees(POSITION_ONE_QUIT))
     );
     expect(depositorPositionTwoAfter).to.be.equal(
-      depositorPositionTwoBefore.add(POSITION_TWO_QUIT)
+      depositorPositionTwoBefore.add(cutRageQuitFees(POSITION_TWO_QUIT))
     );
     expect(liquidityAfter).to.be.equal(liquidityBefore.sub(LIQUIDITY_QUIT));
     expect(depositorTokensAfter).to.be.equal(
-      depositorTokensBefore.add(TOKENS_QUIT)
+      depositorTokensBefore.add(cutRageQuitFees(TOKENS_QUIT))
     );
   });
 });
