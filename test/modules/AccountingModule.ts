@@ -210,6 +210,16 @@ describe("AccountingModule", function () {
 
     const feeCollector = await accountingModule.getFeeCollector();
     expect(feeCollector).to.be.equal(ethers.constants.AddressZero);
+
+    const immediateProfitFee = await accountingModule.getImmediateProfitFee();
+    expect(immediateProfitFee).to.be.equal(PROFIT_FEE);
+
+    const annualMaintenanceFee =
+      await accountingModule.getAnnualMaintenanceFee();
+    expect(annualMaintenanceFee).to.be.equal(ANNUAL_MAINTENANCE_FEE);
+
+    const benchmarkProfit = await accountingModule.getBenchmarkProfit();
+    expect(benchmarkProfit).to.be.equal(0);
   });
 
   it("should revert on unauthorized access", async function () {
@@ -367,6 +377,42 @@ describe("AccountingModule", function () {
 
     const accumulatedFees = await accountingModule.getAccumulatedFees();
     expect(accumulatedFees).to.be.equal("0");
+  });
+
+  it("should correctly set benchmark profit and revert unauthorized access", async () => {
+    const newBenchmarkProfit = ethers.utils.parseEther("0.05");
+
+    // Test revert
+    await expect(
+      accountingModule
+        .connect(feeCollectorSigner)
+        .setBenchmarkProfit(newBenchmarkProfit)
+    ).to.be.revertedWith("Ownable: caller is not the owner");
+
+    // Test correct set
+    await sendArbitraryTx(
+      gnosisSafe,
+      accountingModule.address,
+      accountingModule.interface.encodeFunctionData("setBenchmarkProfit", [
+        newBenchmarkProfit,
+      ]),
+      deployer
+    );
+    const benchmarkProfit = await accountingModule.getBenchmarkProfit();
+    expect(benchmarkProfit).to.be.equal(newBenchmarkProfit);
+
+    // Test calculation of Rage Quit fees
+    const maintenanceFeePerEpoch =
+      ANNUAL_MAINTENANCE_FEE.mul(EPOCH_LENGTH).div(YEAR_SECONDS);
+    const principal = ethers.utils.parseEther("1000");
+    const correctQuitFee = principal
+      .mul(
+        maintenanceFeePerEpoch.add(benchmarkProfit.mul(PROFIT_FEE).div(BASE))
+      )
+      .div(BASE);
+
+    const quitFee = await accountingModule.calculateRageQuitFee(principal);
+    expect(quitFee).to.be.equal(correctQuitFee);
   });
 
   it("should correctly change fees by executor and revert unauthorized access", async () => {
